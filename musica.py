@@ -1027,8 +1027,17 @@ def concluir_pendentes():
         repedir = [e for e in resto if agora - e.get("ultimoPedido", 0) > 300]
         if repedir and AM.user:
             try:
+                # Pede de novo só as que ainda não estão na biblioteca da nuvem, uma por vez: pedidos em
+                # lote às vezes são aceitos (202) e só parte entra.
+                fora = []
                 for ch in em_lotes([e["sid"] for e in repedir], 50):
-                    AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
+                    r = AM.req("GET", f"/v1/catalog/{AM.sf}/songs", {"ids": ",".join(ch), "relate": "library"},
+                               usuario=True)
+                    na_nuvem = {s["id"] for s in r.get("data", [])
+                                if s.get("relationships", {}).get("library", {}).get("data")}
+                    fora += [i for i in ch if i not in na_nuvem]
+                for sid in fora:
+                    AM.req("POST", "/v1/me/library", {"ids[songs]": sid}, usuario=True)
                 for e in repedir:
                     e["ultimoPedido"] = agora
             except Exception as err:  # noqa: BLE001
@@ -1058,20 +1067,28 @@ def concluir_pendentes():
         return len(resto)
 
 
-def aguardar_pendentes(limite, alvo, tempo_max):
-    """Se houver mais que `limite` pendências, espera o iCloud até baixar para `alvo`."""
+def aguardar_pendentes(limite, alvo, sem_progresso):
+    """Se houver mais que `limite` pendências, espera o iCloud até baixar para `alvo`. O iCloud às vezes
+    leva mais de uma hora para entregar; só desiste depois de `sem_progresso` segundos sem nenhuma chegar."""
     n = concluir_pendentes()
     if n <= limite:
         return n
-    inicio = time.time()
+    ultimo_avanco = ultimo_aviso = time.time()
     T.msg(tr(f"   {n} músicas aguardando o iCloud; espero baixar antes de continuar…",
              f"   {n} songs waiting for iCloud; waiting for it to catch up before continuing…"))
-    while n > alvo and time.time() - inicio < tempo_max:
+    while n > alvo and time.time() - ultimo_avanco < sem_progresso:
         time.sleep(30)
         acionar_atualizacao_nuvem()
-        n = concluir_pendentes()
-        T.msg(tr(f"   aguardando o iCloud: {n} músicas ainda não chegaram ao Mac",
-                 f"   waiting for iCloud: {n} songs have not reached the Mac yet"))
+        antes, n = n, concluir_pendentes()
+        if n < antes:
+            ultimo_avanco = time.time()
+        if n != antes or time.time() - ultimo_aviso >= 300:
+            ultimo_aviso = time.time()
+            minutos = int((time.time() - ultimo_avanco) // 60)
+            T.msg(tr(f"   aguardando o iCloud: {n} músicas ainda não chegaram ao Mac"
+                     + (f" (nenhuma chegou nos últimos {minutos} min)" if minutos >= 5 else ""),
+                     f"   waiting for iCloud: {n} songs have not reached the Mac yet"
+                     + (f" (none arrived in the last {minutos} min)" if minutos >= 5 else "")))
     return n
 
 
@@ -1139,11 +1156,13 @@ def job_aplicar(ids):
         raise RuntimeError(tr("Nada selecionado (ou já aplicado).", "Nothing selected (or already applied)."))
     T.passo(tr(f"Trocando {len(escolhidos)} álbuns…", f"Swapping {len(escolhidos)} albums…"), len(escolhidos))
     for lote in em_lotes(escolhidos, 25):
-        if aguardar_pendentes(limite=150, alvo=60, tempo_max=45 * 60) > 150:
-            raise RuntimeError(tr("O iCloud parou de trazer as músicas novas. Parei para não acumular; "
-                                  "o que já foi trocado se completa sozinho quando elas chegarem.",
-                                  "iCloud stopped delivering the new songs. Stopped so they don't pile up; "
-                                  "what was already swapped completes itself when they arrive."))
+        if aguardar_pendentes(limite=150, alvo=60, sem_progresso=3 * 3600) > 150:
+            raise RuntimeError(tr("O iCloud não trouxe nenhuma música nova em 3 horas. Parei para não acumular; "
+                                  "o que já foi trocado se completa sozinho quando elas chegarem. Clique em "
+                                  "Trocar de novo mais tarde para continuar de onde parou.",
+                                  "iCloud delivered no new songs in 3 hours. Stopped so they don't pile up; "
+                                  "what was already swapped completes itself when they arrive. Click Swap "
+                                  "again later to continue where it stopped."))
         aplicar_lote(lote)
         T.feito += len(lote)
         estado = {i["id"]: i for i in lote}
@@ -1153,7 +1172,7 @@ def job_aplicar(ids):
                 i.update({k: estado[i["id"]].get(k) for k in ("feito", "pendentes")})
         salvar(ANALISE, an)
     T.passo(tr("Aguardando o iCloud trazer as últimas músicas…", "Waiting for iCloud to deliver the last songs…"))
-    n = aguardar_pendentes(limite=0, alvo=0, tempo_max=20 * 60)
+    n = aguardar_pendentes(limite=0, alvo=0, sem_progresso=30 * 60)
     if n:
         T.msg(tr(f"{n} músicas ainda não chegaram ao Mac. Elas se completam sozinhas quando chegarem, "
                  "com esta página aberta (ou da próxima vez que você abrir).",
