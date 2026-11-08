@@ -15,9 +15,11 @@ Every replacement, whether from the catalog or from a duplicate:
 
 1. **Backs up your own files first.** Uploaded and matched tracks are downloaded and copied to `~/Music/Old versions backup/Artist/Album/` (`Backup versões antigas` in Portuguese; whichever folder already exists is kept). If a download fails, that track is not deleted.
 2. **Moves your data to the track that stays:** play count (added up), last played date, star rating, favorite and dislike.
-3. **Keeps your playlists intact.** The new track takes the old one's place in the same position in every regular playlist, and the previous order is saved to `dados/playlists_antes/` first.
+3. **Keeps your playlists.** In every regular playlist the new track is added at the end and the old one removed. Rebuilding playlists to keep exact positions made iCloud merge versions and duplicate whole playlists, so the tool makes the smallest possible change. The previous order is saved to `dados/playlists_antes/` first.
 4. Deletes the old track from the library, and from iCloud.
 5. Records everything in `dados/registro.jsonl`.
+
+Tracks are identified by their **persistent ID**. The Music app's database ID can be renumbered overnight, so it is never used. Before touching a track, the tool also checks that it is still the one the analysis saw.
 
 Nothing changes until you review the list and click **Apply**. Pre-selected items are only the high-confidence ones: every track matched, and the album and artist agree.
 
@@ -86,7 +88,7 @@ The first time, macOS asks to allow Terminal, or whatever app runs the script, t
 
 Albums are matched by artist and album name similarity, once suffixes like "Remastered", "Deluxe Edition" and "- Single" are ignored. Tracks are matched by title and length. Live, acoustic, demo, remix and instrumental versions are never mixed with studio versions. Among good matches, it prefers Dolby Atmos, then Hi-Res Lossless, then Lossless. Tracks without a catalog match are left alone and listed at the end of the analysis.
 
-After adding catalog songs, the tool waits up to 10 minutes for iCloud to deliver them to the Mac before swapping. Anything that doesn't arrive is marked as pending and can be applied again later.
+An *Uploaded* or *Matched* track stays linked to its catalog song, so Apple won't add the catalog version while the old one exists. For those, the order is: back up, write everything needed to `dados/pendentes.json` (play count, rating, favorite, playlists), delete, then request the catalog version. iCloud can take several minutes to deliver it to the Mac. Whenever one arrives, the tool finishes that swap: it moves the data over and adds the track to the playlists. This happens between batches, at the end of a run, and every 2 minutes while the page is open, even hours later. If more than 150 songs are waiting, the tool waits for iCloud to catch up before the next batch. The tool also clicks *File › Library › Update Cloud Library* in the Music app, which needs Accessibility permission for the app running the script.
 
 ## Files
 

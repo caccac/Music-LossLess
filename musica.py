@@ -176,7 +176,7 @@ function run(argv) {
     if (o[c]) o[c] = o[c].map(d => (d ? d.toISOString() : null));
   o.arquivos = {};
   try {
-    const f = lib.fileTracks, ids = f.databaseID(), loc = f.location();
+    const f = lib.fileTracks, ids = f.persistentID(), loc = f.location();
     ids.forEach((id, i) => { if (loc[i]) o.arquivos[id] = loc[i].toString(); });
   } catch (e) {}
   return JSON.stringify(o);
@@ -188,7 +188,7 @@ function run(argv) {
   const o = {};
   try {
     const f = Application("Music").libraryPlaylists[0].fileTracks;
-    const ids = f.databaseID(), loc = f.location();
+    const ids = f.persistentID(), loc = f.location();
     ids.forEach((id, i) => { if (loc[i]) o[id] = loc[i].toString(); });
   } catch (e) {}
   return JSON.stringify(o);
@@ -204,7 +204,7 @@ function run(argv) {
   for (let i = 0; i < pid.length; i++) {
     if (smart[i] || tipo[i] !== "none") continue;
     let ids = [];
-    try { ids = ps[i].tracks.databaseID(); } catch (e) {}
+    try { ids = ps[i].tracks.persistentID(); } catch (e) {}
     r.push({ pid: pid[i], nome: nome[i], faixas: ids });
   }
   return JSON.stringify(r);
@@ -218,7 +218,7 @@ function run(argv) {
   const r = [];
   for (const o of ops) {
     try {
-      const t = lib.tracks.whose({ databaseID: o.id })[0];
+      const t = lib.tracks.whose({ persistentID: o.id })[0];
       if (o.playedCount != null) t.playedCount = o.playedCount;
       if (o.playedDate) t.playedDate = new Date(o.playedDate);
       if (o.rating != null) t.rating = o.rating;
@@ -231,26 +231,31 @@ function run(argv) {
 }
 """
 
-AS_REFAZER_PLAYLIST = r"""
+AS_TROCAR_NA_PLAYLIST = r"""
 on run argv
 	set pid to item 1 of argv
-	set inicio to (item 2 of argv) as integer
-	set esperado to (item 3 of argv) as integer
 	set AppleScript's text item delimiters to ","
-	set ids to text items of (item 4 of argv)
+	set velhas to text items of (item 2 of argv)
+	set novas to text items of (item 3 of argv)
 	tell application "Music"
 		set lib to library playlist 1
 		set p to first user playlist whose persistent ID is pid
-		set n to count of tracks of p
-		if n is not esperado then return "mudou:" & n
-		if n ≥ inicio then delete (tracks inicio thru n of p)
 		set falhas to 0
-		repeat with i in ids
-			if (contents of i) is not "" then
+		repeat with n in novas
+			if (contents of n) is not "" then
+				if not (exists (some track of p whose persistent ID is (contents of n))) then
+					try
+						duplicate (first track of lib whose persistent ID is (contents of n)) to p
+					on error
+						set falhas to falhas + 1
+					end try
+				end if
+			end if
+		end repeat
+		repeat with o in velhas
+			if (contents of o) is not "" then
 				try
-					duplicate (first track of lib whose database ID is ((contents of i) as integer)) to p
-				on error
-					set falhas to falhas + 1
+					delete (every track of p whose persistent ID is (contents of o))
 				end try
 			end if
 		end repeat
@@ -270,7 +275,7 @@ on run argv
 		set p to make new user playlist with properties {name:nome}
 		repeat with i in ids
 			try
-				duplicate (first track of lib whose database ID is ((contents of i) as integer)) to p
+				duplicate (first track of lib whose persistent ID is (contents of i)) to p
 			end try
 		end repeat
 		download p
@@ -296,7 +301,7 @@ on run argv
 		set lib to library playlist 1
 		repeat with i in ids
 			try
-				delete (first track of lib whose database ID is ((contents of i) as integer))
+				delete (first track of lib whose persistent ID is (contents of i))
 			on error
 				set end of falhas to (contents of i)
 			end try
@@ -313,13 +318,14 @@ def exportar_biblioteca():
     faixas = []
     for i in range(n):
         t = {c: (o[c][i] if o.get(c) else None) for c in CAMPOS}
-        t["arquivo"] = o["arquivos"].get(str(t["databaseID"]))
+        t["id"] = t["persistentID"]  # estável; o database ID muda quando o app renumera a biblioteca
+        t["arquivo"] = o["arquivos"].get(t["id"])
         faixas.append(t)
     return faixas
 
 
 def arquivos_locais():
-    return {int(k): v for k, v in json.loads(osa(JS_ARQUIVOS, js=True)).items()}
+    return json.loads(osa(JS_ARQUIVOS, js=True))
 
 
 def e_musica(t):
@@ -513,6 +519,8 @@ def buscar_albuns(termo, limite=12):
 
 def buscar_albuns_por_musica(termo):
     termo = termo.strip()[:120]
+    if not termo:
+        return []
     d = AM.req("GET", f"/v1/catalog/{AM.sf}/search",
                {"term": termo, "types": "songs", "limit": "10"},
                cache_chave=f"{AM.sf}|bm|{termo.lower()}")
@@ -656,6 +664,8 @@ def agrupar(faixas):
 
 
 def processar_grupo(g, atual):
+    if not (g["artista"] or g["album"] or any(t["name"] for t in g["faixas"])):
+        return None
     termo_album = base(g["album"]) if g["album"] else norm(g["faixas"][0]["name"])
     ids = buscar_albuns(f'{g["artista"]} {termo_album}')
     melhor = escolher(g, ids[:8])
@@ -688,7 +698,8 @@ def processar_grupo(g, atual):
     faixas = []
     for li, ci in sorted(a["pares"].items()):
         l, n = g["faixas"][li], c["faixas"][ci]
-        faixas.append({"old": l["databaseID"], "nome": l["name"], "status": l["cloudStatus"],
+        faixas.append({"old": l["id"], "nome": l["name"], "artista": l["artist"], "albumAntigo": l["album"],
+                       "status": l["cloudStatus"],
                        "dur": l["duration"], "new": n["id"], "novoNome": n["nome"], "novoDur": n["dur"]})
     sem_par = [g["faixas"][i]["name"] for i in range(len(g["faixas"])) if i not in a["pares"]]
     info = {k: c[k] for k in ("id", "nome", "artista", "url", "variants", "arte", "ano")}
@@ -745,7 +756,8 @@ def job_analisar():
         i["feito"] = i["id"] in feitos
     itens.sort(key=lambda i: (i["tipo"], norm(i["artista"]), norm(i["album"])))
     nao_achados.sort(key=lambda i: (norm(i["artista"]), norm(i["album"])))
-    salvar(ANALISE, {"quando": datetime.now().isoformat(timespec="seconds"), "storefront": AM.sf,
+    salvar(ANALISE, {"versao": VERSAO_ANALISE, "quando": datetime.now().isoformat(timespec="seconds"),
+                     "storefront": AM.sf,
                      "itens": itens, "naoAchados": nao_achados, "falhas": falhas})
     T.msg(tr(f"Pronto: {len(itens)} álbuns com versão melhor; {len(nao_achados)} sem equivalente no catálogo.",
              f"Done: {len(itens)} albums with a better version; {len(nao_achados)} with no catalog match.")
@@ -812,7 +824,14 @@ def fazer_backup(ids, por_id):
     return ok
 
 
+MESCLADOS = DADOS / "mesclados.json"
+
+
 def juntar_metadados(pares, por_id):
+    """Passa reproduções, nota, favorito e "não gostei" das antigas para a nova.
+    Cada par só é somado uma vez, mesmo que a troca seja repetida depois de uma interrupção."""
+    feitos = set(carregar(MESCLADOS, []) or [])
+    pares = [(o, n) for o, n in pares if f"{o}>{n}" not in feitos]
     antigos_por_novo = defaultdict(list)
     for o, n in pares:
         antigos_por_novo[n].append(por_id[o])
@@ -841,46 +860,69 @@ def juntar_metadados(pares, por_id):
     for lote in em_lotes(ops, 150):
         for _, r in json.loads(osa(JS_METADADOS, [json.dumps(lote)], js=True)):
             erros += r != "ok"
+    feitos.update(f"{o}>{n}" for o, n in pares)
+    salvar(MESCLADOS, sorted(feitos))
     T.msg(tr(f"   reproduções/notas/favoritos copiados para {len(ops) - erros} faixas",
              f"   play counts/ratings/favorites copied to {len(ops) - erros} tracks")
           + (tr(f" ({erros} falharam)", f" ({erros} failed)") if erros else ""))
 
 
+def ler_playlists():
+    return json.loads(osa(JS_PLAYLISTS, js=True))
+
+
+def guardar_playlists(pls):
+    salvar(SNAPSHOTS / f"playlists-{time.strftime('%Y%m%d-%H%M%S')}.json", pls)
+
+
+def trocar_na_playlist(p, velhas, novas):
+    """Edição mínima: a nova entra no fim da playlist e a antiga sai. Refazer o trecho final para manter
+    a posição fazia o iCloud mesclar versões e triplicar a playlist."""
+    if not velhas and not novas:
+        return
+    r = osa(AS_TROCAR_NA_PLAYLIST, [p["pid"], ",".join(velhas), ",".join(novas)])
+    if r != "ok:0":
+        T.msg(tr(f"   playlist “{p['nome']}”: {r.split(':')[-1]} faixas não entraram.",
+                 f"   playlist “{p['nome']}”: {r.split(':')[-1]} tracks could not be added."))
+
+
 def atualizar_playlists(mapa):
-    pls = json.loads(osa(JS_PLAYLISTS, js=True))
-    afetadas = [p for p in pls if any(x in mapa for x in p["faixas"])]
+    afetadas = [p for p in ler_playlists() if any(x in mapa for x in p["faixas"])]
     if not afetadas:
         return
-    salvar(SNAPSHOTS / f"playlists-{time.strftime('%Y%m%d-%H%M%S')}.json", afetadas)
+    guardar_playlists(afetadas)
     for p in afetadas:
-        fx, conj = p["faixas"], set(p["faixas"])
-        novo, postos = [], set()
-        for x in fx:
-            if x in mapa:
-                n = mapa[x]
-                if n in conj or n in postos:
-                    continue  # a nova já está na playlist: só sai a antiga
-                novo.append(n)
-                postos.add(n)
-            else:
-                novo.append(x)
-        inicio = 0
-        while inicio < len(novo) and inicio < len(fx) and fx[inicio] == novo[inicio]:
-            inicio += 1
-        r = osa(AS_REFAZER_PLAYLIST, [p["pid"], inicio + 1, len(fx), ",".join(map(str, novo[inicio:]))])
-        if r.startswith("mudou"):
-            T.msg(tr(f"   playlist “{p['nome']}” mudou durante a troca; não mexi nela.",
-                     f"   playlist “{p['nome']}” changed during the swap; left it alone."))
-        elif r != "ok:0":
-            T.msg(tr(f"   playlist “{p['nome']}”: {r.split(':')[1]} faixas não entraram.",
-                     f"   playlist “{p['nome']}”: {r.split(':')[1]} tracks could not be added."))
+        velhas = [x for x in dict.fromkeys(p["faixas"]) if x in mapa]
+        novas = [n for n in dict.fromkeys(mapa[x] for x in velhas) if n]
+        trocar_na_playlist(p, velhas, novas)
     T.msg(tr(f"   {len(afetadas)} playlists atualizadas (cópia de antes em dados/playlists_antes)",
              f"   {len(afetadas)} playlists updated (previous order saved in dados/playlists_antes)"))
 
 
+def apagar(ids):
+    ids, falhas = list(ids), set()
+    for lote in em_lotes(ids, 300):
+        r = osa(AS_APAGAR, [",".join(lote)])
+        falhas |= {x.strip() for x in r.split(",") if x.strip()}
+    return set(ids) - falhas
+
+
+def registrar(pares, por_id, apagadas, motivo):
+    agora = datetime.now().isoformat(timespec="seconds")
+    with REGISTRO.open("a", encoding="utf-8") as f:
+        for o, n in pares:
+            a, b = por_id.get(o, {}), (por_id.get(n, {}) if n else None)
+            f.write(json.dumps({
+                "quando": agora, "motivo": motivo, "apagada": o in apagadas,
+                "antiga": {k: a.get(k) for k in ("persistentID", "name", "artist", "album", "cloudStatus",
+                                                  "kind", "bitRate", "playedCount", "arquivo")},
+                "nova": {k: b.get(k) for k in ("persistentID", "name", "artist", "album", "cloudStatus")}
+                if b else None}, ensure_ascii=False) + "\n")
+
+
 def trocar(pares, faixas, motivo):
     """pares = [(id_antiga, id_nova)]. Faz backup, copia dados, ajusta playlists e apaga a antiga."""
-    por_id = {t["databaseID"]: t for t in faixas}
+    por_id = {t["id"]: t for t in faixas}
     pares = [(o, n) for o, n in pares if o in por_id and n in por_id and o != n]
     if not pares:
         return set()
@@ -891,37 +933,217 @@ def trocar(pares, faixas, motivo):
         return set()
     juntar_metadados(pares, por_id)
     atualizar_playlists(dict(pares))
-    falhas = set()
-    for lote in em_lotes([o for o, _ in pares], 300):
-        r = osa(AS_APAGAR, [",".join(map(str, lote))])
-        falhas |= {int(x) for x in r.split(",") if x.strip().isdigit()}
-    apagadas = {o for o, _ in pares} - falhas
-    with REGISTRO.open("a", encoding="utf-8") as f:
-        agora = datetime.now().isoformat(timespec="seconds")
-        for o, n in pares:
-            a, b = por_id[o], por_id[n]
-            f.write(json.dumps({"quando": agora, "motivo": motivo, "apagada": o in apagadas,
-                                "antiga": {k: a.get(k) for k in ("databaseID", "persistentID", "name", "artist",
-                                                                  "album", "cloudStatus", "kind", "bitRate",
-                                                                  "playedCount", "arquivo")},
-                                "nova": {k: b.get(k) for k in ("databaseID", "persistentID", "name", "artist",
-                                                                "album", "cloudStatus")}},
-                               ensure_ascii=False) + "\n")
+    apagadas = apagar(o for o, _ in pares)
+    registrar(pares, por_id, apagadas, motivo)
+    falhas = len(pares) - len(apagadas)
     T.msg(tr(f"   {len(apagadas)} faixas antigas removidas da biblioteca",
              f"   {len(apagadas)} old tracks removed from the library")
-          + (tr(f"; {len(falhas)} não consegui remover", f"; {len(falhas)} could not be removed") if falhas else ""))
+          + (tr(f"; {falhas} não consegui remover", f"; {falhas} could not be removed") if falhas else ""))
+    return apagadas
+
+
+def esperar_novas(esperado, excluir, limite=600, parado=90, repostar=False):
+    """esperado: chave → (nome, álbum, duração), nomes já normalizados.
+    Espera as faixas do catálogo chegarem ao Mac; desiste depois de `parado` s sem nenhuma nova.
+    repostar=True (chaves = ids do catálogo): repete o pedido de adicionar a cada 30 s, porque logo
+    depois de apagar a versão antiga a Apple ainda ignora o pedido."""
+    achados, inicio = {}, time.time()
+    ultimo = ultimo_post = inicio
+    while True:
+        if repostar and time.time() - ultimo_post >= 30:
+            faltam = [k for k in esperado if k not in achados]
+            for ch in em_lotes(faltam, 50):
+                AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
+            ultimo_post = time.time()
+        faixas = exportar_biblioteca()
+        indice = defaultdict(list)
+        for t in faixas:
+            if t["cloudStatus"] == "subscription" and t["id"] not in excluir:
+                indice[(norm(t["name"]), norm(t["album"]))].append(t)
+        antes = len(achados)
+        for k, (nome, album, dur) in esperado.items():
+            if k not in achados:
+                cands = [t for t in indice.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
+                if cands:
+                    achados[k] = max(cands, key=lambda t: t["dateAdded"] or "")["id"]
+        agora = time.time()
+        if len(achados) > antes:
+            ultimo = agora
+        if len(achados) == len(esperado) or agora - inicio > limite or agora - ultimo > parado:
+            return achados, faixas
+        T.msg(tr(f"   aguardando o iCloud: {len(achados)}/{len(esperado)} faixas novas apareceram no Mac",
+                 f"   waiting for iCloud: {len(achados)}/{len(esperado)} new tracks have reached the Mac"))
+        time.sleep(15)
+
+
+PENDENTES = DADOS / "pendentes.json"
+PEND_LOCK = threading.RLock()
+CAMPOS_PEND = ("id", "persistentID", "name", "artist", "album", "cloudStatus", "kind", "bitRate",
+               "playedCount", "playedDate", "rating", "favorited", "disliked", "arquivo")
+_ultima_nuvem = [0.0]
+
+
+def carregar_pendentes():
+    return carregar(PENDENTES, []) or []
+
+
+def acionar_atualizacao_nuvem():
+    """Arquivo › Biblioteca › Atualizar Biblioteca na Nuvem (no máximo a cada 3 min; se falhar, tudo bem)."""
+    if time.time() - _ultima_nuvem[0] < 180:
+        return
+    _ultima_nuvem[0] = time.time()
+    for arq, bib, item in (("Arquivo", "Biblioteca", "Atualizar Biblioteca na Nuvem"),
+                           ("File", "Library", "Update Cloud Library")):
+        try:
+            osa(f'tell application "System Events" to tell process "Music" to click menu item "{item}" '
+                f'of menu 1 of menu item "{bib}" of menu 1 of menu bar item "{arq}" of menu bar 1', timeout=30)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def concluir_pendentes():
+    """Para cada troca já feita cuja faixa nova chegou ao Mac: passa reproduções/nota/favorito e põe a
+    faixa nova na posição da antiga em cada playlist. Devolve quantas ainda faltam."""
+    with PEND_LOCK:
+        pend = carregar_pendentes()
+        if not pend:
+            return 0
+        faixas = exportar_biblioteca()
+        olds_todos = {o for e in pend for o in e["olds"]}
+        indice = defaultdict(list)
+        for t in faixas:
+            if t["cloudStatus"] == "subscription" and t["id"] not in olds_todos:
+                indice[(norm(t["name"]), norm(t["album"]))].append(t)
+        prontos, resto = [], []
+        for e in pend:
+            nome, album, dur = e["esperado"]
+            c = [t for t in indice.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
+            if c:
+                prontos.append((e, max(c, key=lambda t: t["dateAdded"] or "")["id"]))
+            else:
+                resto.append(e)
+        agora = time.time()
+        repedir = [e for e in resto if agora - e.get("ultimoPedido", 0) > 300]
+        if repedir and AM.user:
+            try:
+                for ch in em_lotes([e["sid"] for e in repedir], 50):
+                    AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
+                for e in repedir:
+                    e["ultimoPedido"] = agora
+            except Exception as err:  # noqa: BLE001
+                T.msg(tr(f"   não consegui pedir de novo ao Apple Music: {err}",
+                         f"   could not ask Apple Music again: {err}"))
+        if prontos:
+            por_id = {t["id"]: t for t in faixas}
+            for e, _ in prontos:
+                por_id.update(e["olds"])
+            pares = [(o, n) for e, n in prontos for o in e["olds"]]
+            juntar_metadados(pares, por_id)
+            insercoes = defaultdict(list)
+            for e, n in prontos:
+                for pl in e["playlists"]:
+                    insercoes[pl["pid"]].append((pl, n))
+            if insercoes:
+                atuais = {x["pid"]: x for x in ler_playlists()}
+                for pid, lst in insercoes.items():
+                    if pid in atuais:
+                        trocar_na_playlist(atuais[pid], [], list(dict.fromkeys(n for _, n in lst)))
+            registrar(pares, por_id, {o for o, _ in pares}, "catálogo")
+            T.msg(tr(f"   {len(prontos)} músicas novas chegaram do iCloud: reproduções e playlists acertadas"
+                     f" (faltam {len(resto)})",
+                     f"   {len(prontos)} new songs arrived from iCloud: play counts and playlists updated"
+                     f" ({len(resto)} to go)"))
+        salvar(PENDENTES, resto)
+        return len(resto)
+
+
+def aguardar_pendentes(limite, alvo, tempo_max):
+    """Se houver mais que `limite` pendências, espera o iCloud até baixar para `alvo`."""
+    n = concluir_pendentes()
+    if n <= limite:
+        return n
+    inicio = time.time()
+    T.msg(tr(f"   {n} músicas aguardando o iCloud; espero baixar antes de continuar…",
+             f"   {n} songs waiting for iCloud; waiting for it to catch up before continuing…"))
+    while n > alvo and time.time() - inicio < tempo_max:
+        time.sleep(30)
+        acionar_atualizacao_nuvem()
+        n = concluir_pendentes()
+        T.msg(tr(f"   aguardando o iCloud: {n} músicas ainda não chegaram ao Mac",
+                 f"   waiting for iCloud: {n} songs have not reached the Mac yet"))
+    return n
+
+
+def trocar_bloqueadas(bloq, faixas, motivo):
+    """A antiga é Enviada/Correspondida (ou há outra assim com o mesmo nome e álbum): enquanto ela existir,
+    adicionar a versão do catálogo não cria faixa nova. Ordem: backup → anota tudo em pendentes.json →
+    apaga → pede a nova. Quando a nova chega ao Mac, concluir_pendentes passa os dados e as playlists."""
+    por_id = {t["id"]: t for t in faixas}
+    bloq = [b for b in bloq if all(o in por_id for o in b["olds"])]
+    if not bloq:
+        return set()
+    todos = sorted({o for b in bloq for o in b["olds"]})
+    precisam = [o for o in todos if por_id[o]["cloudStatus"] in STATUS_BACKUP or por_id[o].get("arquivo")]
+    salvos = fazer_backup(precisam, por_id)
+    bloq = [b for b in bloq if all(o not in precisam or o in salvos for o in b["olds"])]
+    if not bloq:
+        return set()
+    olds = {o for b in bloq for o in b["olds"]}
+    afetadas = [p for p in ler_playlists() if any(x in olds for x in p["faixas"])]
+    if afetadas:
+        guardar_playlists(afetadas)
+    agora = datetime.now().isoformat(timespec="seconds")
+    entradas = []
+    for b in bloq:
+        e = {"sid": b["sid"], "esperado": list(b["esperado"]), "motivo": motivo, "criado": agora,
+             "ultimoPedido": time.time(), "playlists": [],
+             "olds": {o: {k: por_id[o].get(k) for k in CAMPOS_PEND} for o in b["olds"]}}
+        for p in afetadas:
+            fx = p["faixas"]
+            for idx, x in enumerate(fx):
+                if x in b["olds"]:
+                    antes = [y for y in reversed(fx[max(0, idx - 15):idx]) if y not in olds]
+                    e["playlists"].append({"pid": p["pid"], "nome": p["nome"], "pos": idx, "antes": antes})
+        entradas.append(e)
+    with PEND_LOCK:  # anota antes de apagar: se algo for interrompido, nada se perde
+        salvar(PENDENTES, carregar_pendentes() + entradas)
+    apagadas = apagar(olds)
+    if apagadas != olds:  # as que não saíram continuam na biblioteca; tira a pendência delas
+        ruins = {(e["sid"], e["criado"]) for e, b in zip(entradas, bloq) if not b["olds"] <= apagadas}
+        with PEND_LOCK:
+            salvar(PENDENTES, [e for e in carregar_pendentes() if (e["sid"], e["criado"]) not in ruins])
+        bloq = [b for b in bloq if b["olds"] <= apagadas]
+    for ch in em_lotes([b["sid"] for b in bloq], 50):
+        AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
+    acionar_atualizacao_nuvem()
+    T.msg(tr(f"   {len(apagadas)} faixas antigas saíram; as versões do catálogo foram pedidas e entram assim que "
+             "o iCloud trouxer",
+             f"   {len(apagadas)} old tracks removed; the catalog versions were requested and come in as soon as "
+             "iCloud delivers them"))
     return apagadas
 
 
 # ───────────────────────── aplicar trocas pelo catálogo ─────────────────────────
 
+VERSAO_ANALISE = 2  # 2 = faixas identificadas pelo persistent ID
+
+
 def job_aplicar(ids):
     an = carregar(ANALISE, {})
+    if an.get("versao") != VERSAO_ANALISE:
+        raise RuntimeError(tr("Esta análise é de uma versão anterior. Clique em Analisar biblioteca de novo.",
+                              "This analysis is from an older version. Click Analyze library again."))
     escolhidos = [i for i in an.get("itens", []) if i["id"] in set(ids) and not i.get("feito")]
     if not escolhidos:
         raise RuntimeError(tr("Nada selecionado (ou já aplicado).", "Nothing selected (or already applied)."))
     T.passo(tr(f"Trocando {len(escolhidos)} álbuns…", f"Swapping {len(escolhidos)} albums…"), len(escolhidos))
-    for lote in em_lotes(escolhidos, 12):
+    for lote in em_lotes(escolhidos, 25):
+        if aguardar_pendentes(limite=150, alvo=60, tempo_max=45 * 60) > 150:
+            raise RuntimeError(tr("O iCloud parou de trazer as músicas novas. Parei para não acumular; "
+                                  "o que já foi trocado se completa sozinho quando elas chegarem.",
+                                  "iCloud stopped delivering the new songs. Stopped so they don't pile up; "
+                                  "what was already swapped completes itself when they arrive."))
         aplicar_lote(lote)
         T.feito += len(lote)
         estado = {i["id"]: i for i in lote}
@@ -930,40 +1152,76 @@ def job_aplicar(ids):
             if i["id"] in estado:
                 i.update({k: estado[i["id"]].get(k) for k in ("feito", "pendentes")})
         salvar(ANALISE, an)
+    T.passo(tr("Aguardando o iCloud trazer as últimas músicas…", "Waiting for iCloud to deliver the last songs…"))
+    n = aguardar_pendentes(limite=0, alvo=0, tempo_max=20 * 60)
+    if n:
+        T.msg(tr(f"{n} músicas ainda não chegaram ao Mac. Elas se completam sozinhas quando chegarem, "
+                 "com esta página aberta (ou da próxima vez que você abrir).",
+                 f"{n} songs have not reached the Mac yet. They complete themselves when they arrive, "
+                 "while this page is open (or next time you open it)."))
 
 
 def aplicar_lote(lote):
-    songs = list(dict.fromkeys(f["new"] for i in lote for f in i["faixas"]))
-    T.msg(tr(f"Adicionando {len(songs)} faixas do catálogo à biblioteca ",
-             f"Adding {len(songs)} catalog tracks to the library ")
-          + f"({', '.join(i['album'] for i in lote[:3])}{'…' if len(lote) > 3 else ''})")
-    for ch in em_lotes(songs, 50):
-        AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
-    antigos = {f["old"] for i in lote for f in i["faixas"]}
-    esperado = {}
+    faixas = exportar_biblioteca()
+    por_id = {t["id"]: t for t in faixas}
+    # Só mexe numa faixa antiga se ela ainda for exatamente a que a análise viu.
+    validas, mudaram = {}, 0
     for i in lote:
         for f in i["faixas"]:
-            esperado[(i["id"], f["old"])] = (norm(f["novoNome"]), norm(i["catalogo"]["nome"]), f["novoDur"])
-    achados, inicio, faixas = {}, time.time(), []
-    while True:
+            t = por_id.get(f["old"])
+            if t and norm(t["name"]) == norm(f["nome"]) and abs((t["duration"] or 0) - (f["dur"] or 0)) <= 2:
+                validas[(i["id"], f["old"])] = (f, i["catalogo"]["nome"])
+            else:
+                mudaram += 1
+    if mudaram:
+        T.msg(tr(f"   {mudaram} faixas mudaram desde a análise; ficam como estão.",
+                 f"   {mudaram} tracks changed since the analysis; left as they are."))
+    apagadas = set()
+    # Faixa antiga Enviada/Correspondida fica ligada à música do catálogo: adicionar a versão do
+    # catálogo não cria faixa nova enquanto ela existir. O mesmo vale se outra faixa Correspondida/Enviada
+    # com o mesmo nome e álbum estiver na biblioteca. Esses casos vão direto para trocar_bloqueadas.
+    ocup_idx = defaultdict(list)
+    for t in faixas:
+        if t["cloudStatus"] in ("matched", "uploaded"):
+            ocup_idx[(norm(t["name"]), norm(t["album"]))].append(t)
+    bloq = {}
+    for k, (f, alb) in list(validas.items()):
+        nome, album, dur = norm(f["novoNome"]), norm(alb), f["novoDur"]
+        ocupantes = [t for t in ocup_idx.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
+        if ocupantes or por_id[f["old"]]["cloudStatus"] in ("matched", "uploaded", "unknown"):
+            b = bloq.setdefault(f["new"], {"sid": f["new"], "esperado": (nome, album, dur), "olds": set()})
+            b["olds"].add(f["old"])
+            b["olds"].update(t["id"] for t in ocupantes)
+            del validas[k]
+    if bloq:
+        apagadas |= trocar_bloqueadas(list(bloq.values()), faixas, "catálogo")
         faixas = exportar_biblioteca()
-        indice = defaultdict(list)
-        for t in faixas:
-            if t["cloudStatus"] == "subscription" and t["databaseID"] not in antigos:
-                indice[(norm(t["name"]), norm(t["album"]))].append(t)
-        for k, (nome, album, dur) in esperado.items():
-            if k in achados:
+    if validas:
+        songs = list(dict.fromkeys(f["new"] for f, _ in validas.values()))
+        T.msg(tr(f"Adicionando {len(songs)} faixas do catálogo à biblioteca ",
+                 f"Adding {len(songs)} catalog tracks to the library ")
+              + f"({', '.join(i['album'] for i in lote[:3])}{'…' if len(lote) > 3 else ''})")
+        for ch in em_lotes(songs, 50):
+            AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
+        esperado = {k: (norm(f["novoNome"]), norm(alb), f["novoDur"]) for k, (f, alb) in validas.items()}
+        antigos = {f["old"] for f, _ in validas.values()}
+        achados, faixas = esperar_novas(esperado, antigos, parado=60)
+        apagadas |= trocar([(k[1], n) for k, n in achados.items()], faixas, "catálogo")
+        # As que não chegaram: a música do catálogo já existe na biblioteca como Correspondida/Enviada?
+        bloq = {}
+        for k, (f, _) in validas.items():
+            if k in achados or f["old"] in apagadas:
                 continue
-            cands = [t for t in indice.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
-            if cands:
-                achados[k] = max(cands, key=lambda t: t["dateAdded"] or "")["databaseID"]
-        if len(achados) == len(esperado) or time.time() - inicio > 600:
-            break
-        T.msg(tr(f"   aguardando o iCloud: {len(achados)}/{len(esperado)} faixas novas apareceram no Mac",
-                 f"   waiting for iCloud: {len(achados)}/{len(esperado)} new tracks have reached the Mac"))
-        time.sleep(20)
-    pares = [(old, new) for (_, old), new in achados.items()]
-    apagadas = trocar(pares, faixas, "catálogo")
+            nome, album, dur = esperado[k]
+            ocupantes = [t for t in faixas if t["cloudStatus"] in ("matched", "uploaded")
+                         and norm(t["name"]) == nome and norm(t["album"]) == album
+                         and abs((t["duration"] or 0) - dur) <= 3]
+            if ocupantes:
+                b = bloq.setdefault(f["new"], {"sid": f["new"], "esperado": esperado[k], "olds": set()})
+                b["olds"].add(f["old"])
+                b["olds"].update(t["id"] for t in ocupantes)
+        if bloq:
+            apagadas |= trocar_bloqueadas(list(bloq.values()), faixas, "catálogo")
     for i in lote:
         pend = [f["nome"] for f in i["faixas"] if f["old"] not in apagadas]
         i["feito"] = not pend
@@ -1000,7 +1258,7 @@ def achar_repetidas(faixas):
                 continue
             b = sorted(b, key=qualidade, reverse=True)
             gid = hashlib.sha1(f"{chave}|{round(b[0]['duration'] or 0)}".encode()).hexdigest()[:12]
-            resumo = lambda t: {k: t.get(k) for k in ("databaseID", "cloudStatus", "kind", "bitRate",  # noqa: E731
+            resumo = lambda t: {k: t.get(k) for k in ("id", "cloudStatus", "kind", "bitRate",  # noqa: E731
                                                      "playedCount", "dateAdded")}
             grupos.append({"id": gid, "nome": b[0]["name"], "artista": b[0]["artist"], "album": b[0]["album"],
                            "manter": resumo(b[0]), "remover": [resumo(t) for t in b[1:]]})
@@ -1012,7 +1270,7 @@ def job_repetidas(ids):
     T.passo(tr("Lendo a biblioteca…", "Reading the library…"))
     faixas = exportar_biblioteca()
     grupos = [g for g in achar_repetidas(faixas) if g["id"] in set(ids)]
-    pares = [(r["databaseID"], g["manter"]["databaseID"]) for g in grupos for r in g["remover"]]
+    pares = [(r["id"], g["manter"]["id"]) for g in grupos for r in g["remover"]]
     T.passo(tr(f"Removendo {len(pares)} repetidas de {len(grupos)} músicas…",
                f"Removing {len(pares)} duplicates of {len(grupos)} songs…"))
     trocar(pares, faixas, "repetida")
@@ -1022,7 +1280,7 @@ def job_repetidas(ids):
 
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
-            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
+            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
             "config": {k: v for k, v in (carregar(CONFIG, {}) or {}).items()}}
 
 
@@ -1129,6 +1387,16 @@ def iniciar():
     tok = carregar(TOKEN)
     if tok:
         AM.user, AM.sf = tok.get("token"), tok.get("storefront") or "br"
+    def vigia():  # conclui trocas pendentes quando as músicas novas chegam, mesmo sem tarefa rodando
+        while True:
+            time.sleep(120)
+            try:
+                if not T.rodando and carregar_pendentes():
+                    acionar_atualizacao_nuvem()
+                    concluir_pendentes()
+            except Exception as e:  # noqa: BLE001
+                print("pendentes:", e)
+    threading.Thread(target=vigia, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", PORTA), Pagina)
     url = f"http://localhost:{PORTA}"
     print(tr(f"Troca Lossless em {url}  (Ctrl+C para sair)", f"Troca Lossless at {url}  (Ctrl+C to quit)"))

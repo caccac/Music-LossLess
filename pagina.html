@@ -137,9 +137,11 @@ pt:{
   cfgAjuda:'No <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" rel="noopener">portal de desenvolvedor</a>, crie um <b>Media ID</b> (Identifiers › + › Media IDs, com MusicKit). Depois, em <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">Keys</a>, crie uma chave com <b>Media Services (MusicKit)</b> ligada a esse Media ID e baixe o arquivo .p8.',
   cfgCaminho:'Caminho do .p8', salvar:'Salvar',
   naoConectado:'Ainda não conectado.', conectado:'✓ Conectado', loja:'loja', entrar:'Entrar no Apple Music', entrarDeNovo:'Entrar de novo',
-  andamento:'Andamento', nada:'Nada em andamento.', servidorParado:'Servidor parado. Rode “python3 musica.py” de novo.',
+  andamento:'Andamento', nada:'Nada em andamento.',
+  pendentesNuvem:n=>`${n} músicas trocadas aguardando o iCloud trazer a versão nova. Reproduções e playlists são acertadas sozinhas quando chegarem; deixe esta página aberta.`, servidorParado:'Servidor parado. Rode “python3 musica.py” de novo.',
   abaTrocar:'Trocar por Lossless / Atmos', abaRepetidas:'Repetidas', analisar:'Analisar biblioteca',
   analisarDeNovo:'Analisar de novo? (o que já foi trocado fica registrado)',
+  analiseAntiga:'Esta análise foi feita por uma versão anterior, que identificava as faixas de um jeito que não é seguro. Clique em Analisar biblioteca de novo (é rápido: o catálogo já está em cache).',
   resumo:(d,nT,nA,nf)=>`Análise de ${d}: ${nT} álbuns para trocar, ${nA} com edição em Atmos, ${nf} faixas.`,
   falhas:n=>` ⚠︎ ${n} álbuns falharam na consulta; clique em Analisar de novo para tentar só esses.`,
   naoAchados:n=>`${n} álbuns sem equivalente no catálogo (ficam como estão)`, faixasN:n=>`${n} faixas`,
@@ -150,7 +152,7 @@ pt:{
   semAtmos:'versão atual sem Atmos', faixasDe:(a,b)=>`${a}/${b} faixas`, abrir:'abrir', trocado:'✓ trocado', faixas:'faixas',
   semPar:'Sem par no catálogo (ficam como estão): ', pendentes:'Pendentes da última tentativa: ', vazio:'Nada com esses filtros.',
   selecao:(a,f)=>`${a} álbuns marcados · ${f} faixas`,
-  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas, favoritos e posição nas playlists passam para elas.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
+  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas e favoritos passam para elas. Nas playlists, a nova entra no fim e a antiga sai.\n• Algumas chegam do iCloud minutos depois; a troca se completa sozinha.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
   procurarRep:'Procurar repetidas', lendo:'Lendo a biblioteca…', removerRep:'Remover repetidas marcadas',
   repResumo:(g,e)=>`${g} músicas repetidas (${e} cópias sobrando). Mesmo nome, artista e álbum, com duração até 3 s de diferença.`,
   fica:'fica', sai:'sai', repSel:(g,c)=>`${g} marcadas · ${c} cópias saem`,
@@ -164,9 +166,11 @@ en:{
   cfgAjuda:'In the <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" rel="noopener">developer portal</a>, create a <b>Media ID</b> (Identifiers › + › Media IDs, with MusicKit). Then, in <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">Keys</a>, create a key with <b>Media Services (MusicKit)</b> linked to that Media ID and download the .p8 file.',
   cfgCaminho:'Path to the .p8', salvar:'Save',
   naoConectado:'Not connected yet.', conectado:'✓ Connected', loja:'storefront', entrar:'Sign in to Apple Music', entrarDeNovo:'Sign in again',
-  andamento:'Progress', nada:'Nothing running.', servidorParado:'Server stopped. Run “python3 musica.py” again.',
+  andamento:'Progress', nada:'Nothing running.',
+  pendentesNuvem:n=>`${n} swapped songs waiting for iCloud to deliver the new version. Play counts and playlists are fixed automatically when they arrive; keep this page open.`, servidorParado:'Server stopped. Run “python3 musica.py” again.',
   abaTrocar:'Swap for Lossless / Atmos', abaRepetidas:'Duplicates', analisar:'Analyze library',
   analisarDeNovo:'Analyze again? (what was already swapped stays recorded)',
+  analiseAntiga:'This analysis was made by an older version that identified tracks in an unsafe way. Click Analyze library again (it is quick: the catalog is already cached).',
   resumo:(d,nT,nA,nf)=>`Analysis from ${d}: ${nT} albums to swap, ${nA} with a Dolby Atmos edition, ${nf} tracks.`,
   falhas:n=>` ⚠︎ ${n} albums failed to look up; click Analyze library again to retry just those.`,
   naoAchados:n=>`${n} albums with no catalog match (left as they are)`, faixasN:n=>`${n} tracks`,
@@ -177,7 +181,7 @@ en:{
   semAtmos:'current version has no Atmos', faixasDe:(a,b)=>`${a}/${b} tracks`, abrir:'open', trocado:'✓ swapped', faixas:'tracks',
   semPar:'No catalog match (left as they are): ', pendentes:'Pending from the last attempt: ', vazio:'Nothing matches these filters.',
   selecao:(a,f)=>`${a} albums selected · ${f} tracks`,
-  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings, favorites and playlist positions move to them.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
+  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings and favorites move to them. In playlists, the new one is added at the end and the old one removed.\n• Some arrive from iCloud minutes later; the swap completes itself.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
   procurarRep:'Find duplicates', lendo:'Reading the library…', removerRep:'Remove selected duplicates',
   repResumo:(g,e)=>`${g} duplicated songs (${e} extra copies). Same title, artist and album, with lengths within 3 s.`,
   fica:'keep', sai:'remove', repSel:(g,c)=>`${g} selected · ${c} copies removed`,
@@ -228,6 +232,7 @@ async function atualizar(){
     vis($('prog'),tf.rodando&&tf.total>0); $('prog').max=tf.total||1; $('prog').value=tf.feito;
     vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
   } else $('tarefaTxt').textContent=t('nada');
+  if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
   if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); }
   rodavaAntes=tf.rodando;
   if(!A&&E.temAnalise) carregarAnalise();
@@ -268,6 +273,7 @@ async function analisar(){
 async function carregarAnalise(manterSelecao){
   if(!manterSelecao||!A) A=await api('/api/analise');
   if(!A.itens) return;
+  if(A.versao!==2){ $('analiseTxt').innerHTML=`<span class="warn">${esc(t('analiseAntiga'))}</span>`; vis($('filtros'),false); vis($('barraT'),false); $('lista').innerHTML=''; return; }
   if(!manterSelecao) sel=new Set(A.itens.filter(i=>!i.feito&&i.conf==='alta').map(i=>i.id));
   const nT=A.itens.filter(i=>i.tipo==='trocar').length, nA=A.itens.length-nT;
   const nf=A.itens.reduce((s,i)=>s+i.faixas.length,0);

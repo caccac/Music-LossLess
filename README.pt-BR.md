@@ -10,7 +10,7 @@ Ferramenta local para a biblioteca do app Música no Mac.
 Em toda troca:
 1. As antigas que são arquivos seus (enviadas/correspondidas) são **baixadas e copiadas** para `~/Music/Backup versões antigas/Artista/Álbum/`. Se o download falhar, a faixa não é apagada.
 2. Reproduções, última reprodução, nota, favorito e "não gostei" passam para a faixa que fica.
-3. Nas playlists comuns, a nova entra no lugar da antiga, na mesma posição. Antes disso é salva uma cópia da ordem em `dados/playlists_antes/`.
+3. Nas playlists comuns, a nova entra no fim e a antiga sai. Refazer a playlist para manter a posição exata fazia o iCloud mesclar versões e duplicar a playlist inteira; por isso a alteração é a menor possível. Antes disso é salva uma cópia da ordem em `dados/playlists_antes/`.
 4. A antiga é apagada da biblioteca (e do iCloud).
 5. Tudo fica registrado em `dados/registro.jsonl`.
 
@@ -31,7 +31,9 @@ Na primeira vez, o macOS pede permissão para o Terminal (ou o app que rodar o s
 ## Observações
 
 - Faixas sem par no catálogo ficam como estão. A lista aparece no fim da análise.
-- Depois de adicionar, o script espera até 10 min pelo iCloud trazer as faixas novas para o Mac. O que não chegar fica "pendente" e pode ser aplicado de novo.
+- Faixa Enviada ou Correspondida fica ligada à música do catálogo, e a Apple não adiciona a versão do catálogo enquanto ela existir. Nesses casos o script faz o backup, anota em `dados/pendentes.json` tudo o que precisa (reproduções, nota, favorito, playlists), apaga a antiga e pede a nova. O iCloud pode levar vários minutos para trazê-la ao Mac. Quando ela chega, o script conclui a troca, entre os lotes, no fim e a cada 2 min com a página aberta. Com mais de 150 pendentes, ele espera o iCloud antes do próximo lote.
+- As faixas são identificadas pelo *persistent ID*. O *database ID* do app Música pode ser renumerado de uma noite para outra e nunca é usado. Antes de mexer numa faixa, o script confere se ela ainda é a mesma da análise.
+- O script usa o menu Arquivo › Biblioteca › Atualizar Biblioteca na Nuvem do app Música, o que exige permissão de Acessibilidade para o app que roda o script.
 - O token do Apple Music fica em `dados/token_usuario.json` (permissão 600). O `.p8` não é copiado.
 
 ## Licença
