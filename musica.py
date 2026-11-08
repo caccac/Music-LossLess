@@ -1295,6 +1295,70 @@ def job_repetidas(ids):
     trocar(pares, faixas, "repetida")
 
 
+# ───────────────────────── álbuns sem equivalente no catálogo ─────────────────────────
+
+def chave_sem_par(artista, album):
+    return f"{norm_artista(artista or '')}|{norm(album or '')}"
+
+
+def grupos_sem_par(faixas):
+    """Os álbuns que a última análise não achou no catálogo, lidos de novo da biblioteca (com as faixas
+    de agora). Cada grupo traz o id usado para apagar."""
+    an = carregar(ANALISE, {}) or {}
+    if an.get("versao") != VERSAO_ANALISE:
+        raise RuntimeError(tr("Analise a biblioteca primeiro.", "Analyze the library first."))
+    chaves = {chave_sem_par(i["artista"], i["album"]) for i in an.get("naoAchados", [])}
+    saida = []
+    for g in agrupar(faixas):
+        if g["tipo"] != "trocar":
+            continue
+        if chave_sem_par(g["artista"], g["album"] or g["faixas"][0]["name"]) not in chaves:
+            continue
+        saida.append({"id": g["id"], "artista": g["artista"], "album": g["album"] or g["faixas"][0]["name"],
+                      "faixas": [{"id": t["id"], "nome": t["name"], "artista": t["artist"],
+                                  "status": t["cloudStatus"], "dur": t["duration"],
+                                  "reproducoes": t.get("playedCount") or 0, "arquivo": bool(t.get("arquivo"))}
+                                 for t in g["faixas"]]})
+    saida.sort(key=lambda g: (norm(g["artista"]), norm(g["album"])))
+    return saida
+
+
+def job_apagar_sem_par(ids):
+    """Apaga da biblioteca (e do iCloud) os álbuns escolhidos que não têm equivalente no catálogo.
+    Antes, baixa e copia para o backup as faixas que são arquivos seus; as que não baixarem ficam."""
+    T.passo(tr("Lendo a biblioteca…", "Reading the library…"))
+    faixas = exportar_biblioteca()
+    por_id = {t["id"]: t for t in faixas}
+    grupos = [g for g in grupos_sem_par(faixas) if g["id"] in set(ids)]
+    alvo = [f["id"] for g in grupos for f in g["faixas"]]
+    if not alvo:
+        raise RuntimeError(tr("Nada para apagar (os álbuns marcados não estão mais na biblioteca).",
+                              "Nothing to delete (the selected albums are no longer in the library)."))
+    T.passo(tr(f"Apagando {len(grupos)} álbuns sem equivalente ({len(alvo)} faixas)…",
+               f"Deleting {len(grupos)} albums with no catalog match ({len(alvo)} tracks)…"))
+    precisam = sorted(i for i in alvo if por_id[i]["cloudStatus"] in STATUS_BACKUP or por_id[i].get("arquivo"))
+    salvos = fazer_backup(precisam, por_id)
+    podem = [i for i in alvo if i not in precisam or i in salvos]
+    if len(podem) < len(alvo):
+        T.msg(tr(f"   {len(alvo) - len(podem)} faixas ficam na biblioteca porque o backup não deu certo.",
+                 f"   {len(alvo) - len(podem)} tracks stay in the library because the backup did not work."))
+    if not podem:
+        return
+    afetadas = [p for p in ler_playlists() if any(x in set(podem) for x in p["faixas"])]
+    if afetadas:
+        guardar_playlists(afetadas)
+    apagadas = apagar(podem)
+    registrar([(i, None) for i in podem], por_id, apagadas, "sem equivalente")
+    falhas = len(podem) - len(apagadas)
+    T.msg(tr(f"   {len(apagadas)} faixas apagadas da biblioteca"
+             + (f"; saíram também de {len(afetadas)} playlists (cópia de antes em dados/playlists_antes)"
+                if afetadas else ""),
+             f"   {len(apagadas)} tracks deleted from the library"
+             + (f"; also removed from {len(afetadas)} playlists (previous order saved in dados/playlists_antes)"
+                if afetadas else ""))
+          + (tr(f"; {falhas} não consegui apagar", f"; {falhas} could not be deleted") if falhas else ""))
+
+
 # ───────────────────────── servidor local ─────────────────────────
 
 NOMES_BACKUP = ("Backup versões antigas", "Old versions backup")
@@ -1408,6 +1472,8 @@ class Pagina(BaseHTTPRequestHandler):
                 return self._json(carregar(ANALISE, {}) or {})
             if caminho == "/api/repetidas":
                 return self._json({"grupos": achar_repetidas(exportar_biblioteca())})
+            if caminho == "/api/sempar":
+                return self._json({"grupos": grupos_sem_par(exportar_biblioteca())})
             self._json({"erro": "não encontrado"}, 404)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -1437,6 +1503,8 @@ class Pagina(BaseHTTPRequestHandler):
                 apagar_backup()
             elif caminho == "/api/repetidas":
                 T.iniciar(tr("Repetidas", "Duplicates"), job_repetidas, corpo.get("ids") or [])
+            elif caminho == "/api/sempar":
+                T.iniciar(tr("Sem equivalente", "No catalog match"), job_apagar_sem_par, corpo.get("ids") or [])
             else:
                 return self._json({"erro": "não encontrado"}, 404)
             self._json(estado())

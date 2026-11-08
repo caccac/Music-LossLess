@@ -9,6 +9,7 @@ Songs you uploaded or matched years ago with iTunes Match / Sync Library never p
 Music Lossless is a small local tool (one Python file and one web page) that does it for you:
 
 - **Swap for Lossless / Atmos.** Finds every *Uploaded*, *Matched* or *No Longer Available* track, looks up the same album in the Apple Music catalog, adds the catalog version and replaces the old one. It also finds Apple Music albums in your library that have no Dolby Atmos when another edition of the same album does.
+- **Delete albums with no catalog match.** Albums the analysis could not find in the catalog are listed in their own tab, with their tracks. Nothing is selected; the ones you pick are backed up and then deleted from the library and iCloud.
 - **Remove duplicates.** Same title, artist and album, with lengths within 3 seconds. The best-quality copy stays: a lossless file on the Mac first, then Apple Music, then Purchased, then Matched, then Uploaded, then the highest bitrate.
 
 Every replacement, whether from the catalog or from a duplicate:
@@ -73,6 +74,8 @@ Or double-click `Abrir.command`. Your browser opens at <http://localhost:8765>.
 5. **Apply.** Try a single album first and check it in the Music app.
 
 The **Duplicates** tab lists the duplicates and applies the same backup and merge steps.
+
+The **No catalog match** tab lists the albums the last analysis could not find in the Apple Music catalog, read again from the library so it shows what is there now. Search or filter by status, expand an album to see its tracks and play counts, and select the ones to delete. Your own files are backed up first, and any track whose backup fails stays. Since there is no catalog version, the backup is the only copy afterwards, and play counts are kept only in `dados/registro.jsonl`.
 
 When you no longer need the backup, **Move backup to Trash** sends the backup folder to the macOS Trash. It shows how many files and how much space first, and it stays disabled while a task is running or songs are still waiting for iCloud, because until they arrive the backup is the only copy. Nothing is deleted for good until you empty the Trash.
 

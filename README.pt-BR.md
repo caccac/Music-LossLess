@@ -5,6 +5,7 @@
 Ferramenta local para a biblioteca do app Música no Mac.
 
 - **Trocar por Lossless / Atmos**: faixas *Enviadas*, *Correspondidas* ou *Indisponíveis* (que nunca tocam em Lossless/Atmos) são trocadas pela versão do catálogo Apple Music. Álbuns do Apple Music sem Atmos são trocados por outra edição com Dolby Atmos, quando existe.
+- **Sem equivalente**: álbuns que a análise não achou no catálogo aparecem numa aba própria, com as faixas. Nada vem marcado; os que você escolher passam pelo backup e depois são apagados da biblioteca e do iCloud.
 - **Repetidas**: mesma música, mesmo artista, mesmo álbum, duração até 3 s de diferença. Fica a de melhor qualidade (arquivo sem perda no Mac › Apple Music › Comprado › Correspondido › Enviado; depois maior taxa de bits).
 
 Em toda troca:
@@ -25,7 +26,8 @@ A interface está em **português** e **inglês**: segue o idioma do navegador e
 4. **Analisar biblioteca**. Leva alguns minutos na primeira vez; as buscas ficam em cache.
 5. Revise a lista. Vêm marcados só os álbuns de confiança **alta**: todas as faixas casaram e o álbum e o artista conferem. Use os filtros e o link "abrir" para checar os outros.
 6. **Aplicar**.
-7. Quando não precisar mais do backup, **Mover backup para o Lixo** manda a pasta para o Lixo do Mac. Antes, mostra quantos arquivos e quanto espaço ocupam. Fica bloqueado enquanto houver tarefa rodando ou músicas aguardando o iCloud, porque até elas chegarem o backup é a única cópia. Nada é apagado de vez até você esvaziar o Lixo.
+7. Na aba **Sem equivalente**, se quiser, marque álbuns sem versão no catálogo para apagar. Dá para buscar, filtrar por estado e abrir cada álbum para ver as faixas e as reproduções. Os arquivos seus vão para o backup antes; se o backup de alguma faixa falhar, ela fica. Como não existe versão no catálogo, depois disso o backup é a única cópia, e as reproduções ficam só anotadas em `dados/registro.jsonl`.
+8. Quando não precisar mais do backup, **Mover backup para o Lixo** manda a pasta para o Lixo do Mac. Antes, mostra quantos arquivos e quanto espaço ocupam. Fica bloqueado enquanto houver tarefa rodando ou músicas aguardando o iCloud, porque até elas chegarem o backup é a única cópia. Nada é apagado de vez até você esvaziar o Lixo.
 
 Na primeira vez, o macOS pede permissão para o Terminal (ou o app que rodar o script) controlar o app Música.
 

@@ -18,6 +18,7 @@ h2{font-size:18px;margin:0 0 10px}
 .linha{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 button{font:inherit;border:0;border-radius:9px;padding:8px 14px;background:var(--ac);color:#fff;cursor:pointer;font-weight:600}
 button.sec{background:var(--chip);color:var(--tx)}
+button.perigo{background:#c62828;color:#fff}
 button:disabled{opacity:.45;cursor:default}
 .idioma{display:flex;border:1px solid var(--bd);border-radius:9px;overflow:hidden;flex:none}
 .idioma button{border-radius:0;background:transparent;color:var(--mut);padding:5px 10px;font-weight:600;font-size:12px}
@@ -92,6 +93,7 @@ a{color:var(--ac)}
     <div class="linha tabs" style="margin-bottom:12px">
       <button id="tabT" class="on" onclick="aba('T')" data-i="abaTrocar"></button>
       <button id="tabR" onclick="aba('R')" data-i="abaRepetidas"></button>
+      <button id="tabS" onclick="aba('S')" data-i="abaSemPar"></button>
     </div>
 
     <div id="painelT">
@@ -116,12 +118,31 @@ a{color:var(--ac)}
       </div>
       <div id="lista"></div>
       <div id="mais" class="esc" style="text-align:center;padding:12px"><button class="sec" onclick="limite+=200;desenhar()" data-i="mais"></button></div>
-      <details id="naoAchados" class="esc" style="margin-top:14px"><summary></summary><ul id="naoLista" class="mut"></ul></details>
+      <p id="naoAchados" class="mut esc" style="margin-top:14px"></p>
       <div class="barra esc" id="barraT"><div class="linha">
         <button class="sec" onclick="marcarVisiveis(true)" data-i="marcarVis"></button>
         <button class="sec" onclick="marcarVisiveis(false)" data-i="desmarcarVis"></button>
         <span id="selTxt" class="mut" style="flex:1"></span>
         <button id="bAplicar" onclick="aplicar()" data-i="aplicar"></button>
+      </div></div>
+    </div>
+
+    <div id="painelS" class="esc">
+      <div class="linha"><button onclick="carregarSemPar()" data-i="lerSemPar"></button><span id="spTxt" class="mut"></span></div>
+      <p class="mut" data-i="spAjuda"></p>
+      <div class="linha esc" id="spFiltros" style="margin-bottom:6px">
+        <input type="text" id="spBusca" data-i-ph="fBusca" oninput="desenharSemPar()">
+        <select id="spStatus" onchange="desenharSemPar()">
+          <option value="" data-i="spQualquer"></option><option value="uploaded" data-i="spUploaded"></option><option value="matched" data-i="spMatched"></option><option value="no longer available" data-i="spIndisp"></option>
+        </select>
+      </div>
+      <div id="spLista"></div>
+      <div id="spMais" class="esc" style="text-align:center;padding:12px"><button class="sec" onclick="spLimite+=200;desenharSemPar()" data-i="mais"></button></div>
+      <div class="barra esc" id="barraS"><div class="linha">
+        <button class="sec" onclick="marcarSemPar(true)" data-i="marcarVis"></button>
+        <button class="sec" onclick="marcarSemPar(false)" data-i="desmarcarVis"></button>
+        <span id="spSel" class="mut" style="flex:1"></span>
+        <button id="bSP" class="perigo" onclick="apagarSemPar()" data-i="spApagar"></button>
       </div></div>
     </div>
 
@@ -155,7 +176,13 @@ pt:{
   analiseAntiga:'Esta análise foi feita por uma versão anterior, que identificava as faixas de um jeito que não é seguro. Clique em Analisar biblioteca de novo (é rápido: o catálogo já está em cache).',
   resumo:(d,nT,nA,nf)=>`Análise de ${d}: ${nT} álbuns para trocar, ${nA} com edição em Atmos, ${nf} faixas.`,
   falhas:n=>` ⚠︎ ${n} álbuns falharam na consulta; clique em Analisar de novo para tentar só esses.`,
-  naoAchados:n=>`${n} álbuns sem equivalente no catálogo (ficam como estão)`, faixasN:n=>`${n} faixas`,
+  naoAchados:n=>`${n} álbuns não têm equivalente no catálogo e ficam como estão. Para apagar algum, use a aba Sem equivalente.`,
+  abaSemPar:'Sem equivalente', lerSemPar:'Ler álbuns sem equivalente',
+  spAjuda:'Álbuns que a última análise não achou no catálogo do Apple Music. Nada vem marcado: escolha os que quer apagar da biblioteca (e do iCloud). Faixas que são arquivos seus são baixadas e copiadas para o backup antes de sair; se o backup não der certo, elas ficam.',
+  spQualquer:'Qualquer estado', spUploaded:'Com faixas enviadas', spMatched:'Com faixas correspondidas', spIndisp:'Com faixas indisponíveis',
+  spResumo:(g,f)=>`${g} álbuns sem equivalente · ${f} faixas`, spSel:(g,f)=>`${g} álbuns marcados · ${f} faixas`,
+  spApagar:'Apagar marcados', semNome:'(sem nome)', spSemAnalise:'Analise a biblioteca primeiro (aba Trocar).', reproducoes:n=>`${n}×`,
+  spConfirma:(g,f,p,b,pl)=>`Apagar ${g} álbuns (${f} faixas) da biblioteca e do iCloud?\n\n• Não existe versão deles no catálogo: depois de apagados, só ficam no backup.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair. Se alguma não baixar, ela fica.\n• Elas também saem das playlists.${pl?`\n• ${pl} reproduções registradas se perdem (ficam anotadas em dados/registro.jsonl).`:''}`, faixasN:n=>`${n} faixas`,
   fTudo:'Tudo', fTrocar:'Enviadas / correspondidas / indisponíveis', fAtmos:'Apple Music → edição com Atmos',
   fConf:'Qualquer confiança', conf_alta:'alta', 'conf_média':'média', conf_baixa:'baixa', confianca:c=>`confiança ${c}`,
   fFormato:'Qualquer formato', fComAtmos:'Com Dolby Atmos', fBusca:'Buscar artista ou álbum', fFeitos:'mostrar já trocados',
@@ -189,7 +216,13 @@ en:{
   analiseAntiga:'This analysis was made by an older version that identified tracks in an unsafe way. Click Analyze library again (it is quick: the catalog is already cached).',
   resumo:(d,nT,nA,nf)=>`Analysis from ${d}: ${nT} albums to swap, ${nA} with a Dolby Atmos edition, ${nf} tracks.`,
   falhas:n=>` ⚠︎ ${n} albums failed to look up; click Analyze library again to retry just those.`,
-  naoAchados:n=>`${n} albums with no catalog match (left as they are)`, faixasN:n=>`${n} tracks`,
+  naoAchados:n=>`${n} albums have no catalog match and are left as they are. To delete any of them, use the No catalog match tab.`,
+  abaSemPar:'No catalog match', lerSemPar:'Load albums with no match',
+  spAjuda:'Albums the last analysis could not find in the Apple Music catalog. Nothing is selected: choose the ones you want to delete from the library (and from iCloud). Tracks that are your own files are downloaded and copied to the backup before they go; if the backup fails, they stay.',
+  spQualquer:'Any status', spUploaded:'With uploaded tracks', spMatched:'With matched tracks', spIndisp:'With unavailable tracks',
+  spResumo:(g,f)=>`${g} albums with no match · ${f} tracks`, spSel:(g,f)=>`${g} albums selected · ${f} tracks`,
+  spApagar:'Delete selected', semNome:'(untitled)', spSemAnalise:'Analyze the library first (Swap tab).', reproducoes:n=>`${n}×`,
+  spConfirma:(g,f,p,b,pl)=>`Delete ${g} albums (${f} tracks) from the library and from iCloud?\n\n• There is no catalog version of them: once deleted, they only exist in the backup.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before they go. Any that fail to download stay.\n• They are also removed from playlists.${pl?`\n• ${pl} recorded plays are lost (they stay noted in dados/registro.jsonl).`:''}`, faixasN:n=>`${n} tracks`,
   fTudo:'Everything', fTrocar:'Uploaded / matched / unavailable', fAtmos:'Apple Music → Dolby Atmos edition',
   fConf:'Any confidence', conf_alta:'high', 'conf_média':'medium', conf_baixa:'low', confianca:c=>`${c} confidence`,
   fFormato:'Any format', fComAtmos:'With Dolby Atmos', fBusca:'Search artist or album', fFeitos:'show already swapped',
@@ -208,6 +241,7 @@ en:{
 const VAR={'dolby-atmos':['Dolby Atmos','atmos'],'hi-res-lossless':['Hi-Res Lossless','ll'],'lossless':['Lossless','ll']};
 const H={'Content-Type':'application/json','X-Troca':'1'};
 let L=(()=>{try{const s=localStorage.getItem('idioma');if(s)return s}catch(e){}return (navigator.language||'').toLowerCase().startsWith('pt')?'pt':'en'})();
+let S=null, ssel=new Set(), spLimite=200;
 let E={}, A=null, sel=new Set(), limite=200, R=null, rsel=new Set(), rodavaAntes=false;
 const t=k=>TXT[L][k];
 const $=id=>document.getElementById(id);
@@ -242,14 +276,14 @@ async function atualizar(){
   $('loginTxt').innerHTML=E.logado?`<span class="ok">${t('conectado')}</span> <span class="mut">(${t('loja')}: ${esc(E.storefront)})</span>`:esc(t('naoConectado'));
   $('bLogin').textContent=E.logado?t('entrarDeNovo'):t('entrar');
   const tf=E.tarefa;
-  $('bAnalisar').disabled=tf.rodando||!E.logado; $('bAplicar').disabled=tf.rodando; $('bRep').disabled=tf.rodando;
+  $('bAnalisar').disabled=tf.rodando||!E.logado; $('bAplicar').disabled=tf.rodando; $('bRep').disabled=tf.rodando; if(S) contarSemPar();
   if(tf.nome){
     $('tarefaTxt').innerHTML=(tf.rodando?'⏳ ':tf.erro?'<span class="warn">⚠︎</span> ':'<span class="ok">✓</span> ')+esc(tf.nome+': '+(tf.etapa||''))+(tf.total?` — ${tf.feito}/${tf.total}`:'');
     vis($('prog'),tf.rodando&&tf.total>0); $('prog').max=tf.total||1; $('prog').value=tf.feito;
     vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
   } else $('tarefaTxt').textContent=t('nada');
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
-  if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); carregarBackup(); }
+  if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); if(S) carregarSemPar(); carregarBackup(); }
   desenharBackup();
   rodavaAntes=tf.rodando;
   if(!A&&E.temAnalise) carregarAnalise();
@@ -292,9 +326,9 @@ async function entrar(){
   }catch(e){erro(e)}
 }
 function aba(x){
-  $('tabT').classList.toggle('on',x==='T'); $('tabR').classList.toggle('on',x==='R');
-  vis($('painelT'),x==='T'); vis($('painelR'),x==='R');
+  for(const k of ['T','R','S']){ $('tab'+k).classList.toggle('on',x===k); vis($('painel'+k),x===k); }
   if(x==='R'&&!R) carregarRepetidas();
+  if(x==='S'&&!S) carregarSemPar();
 }
 
 // ── troca pelo catálogo / catalog swap
@@ -312,8 +346,7 @@ async function carregarAnalise(manterSelecao){
   $('analiseTxt').textContent=t('resumo')(new Date(A.quando).toLocaleString(t('locale')),nT,nA,nf)+(A.falhas?t('falhas')(A.falhas):'');
   vis($('filtros'),true); vis($('barraT'),true);
   const na=A.naoAchados||[]; vis($('naoAchados'),na.length>0);
-  $('naoAchados').querySelector('summary').textContent=t('naoAchados')(na.length);
-  $('naoLista').innerHTML=na.slice(0,2000).map(i=>`<li>${esc(i.artista)} — ${esc(i.album)} <span class="chip">${t('faixasN')(i.nFaixas)}</span></li>`).join('');
+  $('naoAchados').textContent=t('naoAchados')(na.length);
   desenhar();
 }
 const semAcento=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -391,6 +424,48 @@ async function aplicarRepetidas(){
   const gs=R.grupos.filter(g=>rsel.has(g.id)); const n=gs.reduce((s,g)=>s+g.remover.length,0);
   if(!confirm(t('confirmarRep')(n,E.backup))) return;
   try{await api('/api/repetidas',{ids:gs.map(g=>g.id)});await atualizar()}catch(e){erro(e)}
+}
+
+// ── sem equivalente / no catalog match
+async function carregarSemPar(){
+  $('spTxt').textContent=t('lendo');
+  try{S=await api('/api/sempar')}catch(e){S=null;$('spTxt').textContent=/Analy|Analis/.test(e.message)?t('spSemAnalise'):'';vis($('barraS'),false);vis($('spFiltros'),false);$('spLista').innerHTML='';return}
+  const ids=new Set(S.grupos.map(g=>g.id)); ssel=new Set([...ssel].filter(i=>ids.has(i)));
+  desenharSemPar();
+}
+function filtradosSemPar(){
+  const b=semAcento($('spBusca').value), s=$('spStatus').value;
+  return S.grupos.filter(g=>(!s||g.faixas.some(f=>f.status===s))&&(!b||semAcento(g.artista+' '+g.album+' '+g.faixas.map(f=>f.nome).join(' ')).includes(b)));
+}
+function desenharSemPar(){
+  if(!S) return;
+  $('spTxt').textContent=t('spResumo')(S.grupos.length,S.grupos.reduce((n,g)=>n+g.faixas.length,0));
+  const fs=filtradosSemPar();
+  $('spLista').innerHTML=fs.slice(0,spLimite).map(g=>{
+    const cont={}; g.faixas.forEach(f=>cont[f.status]=(cont[f.status]||0)+1);
+    const chips=Object.entries(cont).map(([k,n])=>`<span class="chip">${st(k)} ${n}</span>`).join('');
+    const faixas=g.faixas.map(f=>`<li>${esc(f.nome||t('semNome'))}${f.artista&&f.artista!==g.artista?` <span class="mut">${esc(f.artista)}</span>`:''} <span class="chip">${st(f.status)}</span>${f.reproducoes?` <span class="mut">${t('reproducoes')(f.reproducoes)}</span>`:''}</li>`).join('');
+    return `<div class="item" style="grid-template-columns:24px 1fr">
+      <input type="checkbox" ${ssel.has(g.id)?'checked':''} onchange="this.checked?ssel.add('${g.id}'):ssel.delete('${g.id}');contarSemPar()">
+      <div><div class="t">${esc([g.artista,g.album].filter(Boolean).join(' — ')||t('semNome'))}</div><div>${chips}</div>
+      <details><summary>${t('faixasN')(g.faixas.length)}</summary><ul>${faixas}</ul></details></div></div>`;
+  }).join('')||`<p class="mut">${t('vazio')}</p>`;
+  vis($('spMais'),fs.length>spLimite); vis($('spFiltros'),true); vis($('barraS'),S.grupos.length>0);
+  contarSemPar();
+}
+function marcarSemPar(v){filtradosSemPar().forEach(g=>v?ssel.add(g.id):ssel.delete(g.id));desenharSemPar()}
+function contarSemPar(){
+  if(!S) return;
+  const gs=S.grupos.filter(g=>ssel.has(g.id));
+  $('spSel').textContent=t('spSel')(gs.length,gs.reduce((n,g)=>n+g.faixas.length,0));
+  $('bSP').disabled=!gs.length||(E.tarefa&&E.tarefa.rodando);
+}
+async function apagarSemPar(){
+  const gs=S.grupos.filter(g=>ssel.has(g.id)); const fx=gs.flatMap(g=>g.faixas);
+  const proprias=fx.filter(f=>f.arquivo||['uploaded','matched','purchased','unknown'].includes(f.status)).length;
+  const plays=fx.reduce((n,f)=>n+f.reproducoes,0);
+  if(!confirm(t('spConfirma')(gs.length,fx.length,proprias,E.backup,plays))) return;
+  try{await api('/api/sempar',{ids:gs.map(g=>g.id)});ssel.clear();await atualizar()}catch(e){erro(e)}
 }
 </script>
 </body>
