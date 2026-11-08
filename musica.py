@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Troca Lossless — app Música no Mac.
+Music Lossless — app Música no Mac.
 
 1. Troca faixas "Enviadas", "Correspondidas" ou "Indisponíveis" pela versão do
    catálogo Apple Music (Lossless / Dolby Atmos) e troca álbuns do Apple Music
@@ -1278,6 +1278,53 @@ def job_repetidas(ids):
 
 # ───────────────────────── servidor local ─────────────────────────
 
+NOMES_BACKUP = ("Backup versões antigas", "Old versions backup")
+
+
+def pastas_backup():
+    return [Path.home() / "Music" / n for n in NOMES_BACKUP if (Path.home() / "Music" / n).is_dir()]
+
+
+def info_backup():
+    arquivos = tamanho = 0
+    for pasta in pastas_backup():
+        for f in pasta.rglob("*"):
+            if f.is_file() and not f.name.startswith("."):
+                arquivos += 1
+                tamanho += f.stat().st_size
+    return {"pastas": [str(x) for x in pastas_backup()], "arquivos": arquivos, "bytes": tamanho}
+
+
+def para_o_lixo(pasta):
+    """Manda a pasta para o Lixo (recuperável até esvaziar). Tenta pelo Finder; senão move para ~/.Trash."""
+    try:
+        osa('on run argv\n\ttell application "Finder" to delete (POSIX file (item 1 of argv) as alias)\nend run',
+            [str(pasta)], timeout=120)
+        if not pasta.exists():
+            return
+    except Exception:  # noqa: BLE001
+        pass
+    lixo = Path.home() / ".Trash"
+    alvo = lixo / pasta.name
+    if alvo.exists():
+        alvo = lixo / f"{pasta.name} {time.strftime('%Y-%m-%d %H.%M.%S')}"
+    shutil.move(str(pasta), str(alvo))
+
+
+def apagar_backup():
+    if T.rodando:
+        raise RuntimeError(tr("Espere a tarefa em andamento terminar.", "Wait for the running task to finish."))
+    n = len(carregar_pendentes())
+    if n:
+        raise RuntimeError(tr(f"{n} músicas ainda aguardam o iCloud; até elas chegarem, o backup é a única cópia. "
+                              "Tente de novo depois.",
+                              f"{n} songs are still waiting for iCloud; until they arrive the backup is the only "
+                              "copy. Try again later."))
+    for pasta in pastas_backup():
+        para_o_lixo(pasta)
+    T.msg(tr("Backup das versões antigas enviado para o Lixo.", "Old versions backup moved to the Trash."))
+
+
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
             "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
@@ -1336,6 +1383,8 @@ class Pagina(BaseHTTPRequestHandler):
                 return self._resp((BASE / "pagina.html").read_bytes(), "text/html; charset=utf-8")
             if caminho == "/api/estado":
                 return self._json(estado())
+            if caminho == "/api/backup":
+                return self._json(info_backup())
             if caminho == "/api/analise":
                 return self._json(carregar(ANALISE, {}) or {})
             if caminho == "/api/repetidas":
@@ -1365,6 +1414,8 @@ class Pagina(BaseHTTPRequestHandler):
                 T.iniciar(tr("Análise", "Analysis"), job_analisar)
             elif caminho == "/api/aplicar":
                 T.iniciar(tr("Troca", "Swap"), job_aplicar, corpo.get("ids") or [])
+            elif caminho == "/api/backup/apagar":
+                apagar_backup()
             elif caminho == "/api/repetidas":
                 T.iniciar(tr("Repetidas", "Duplicates"), job_repetidas, corpo.get("ids") or [])
             else:
@@ -1399,7 +1450,7 @@ def iniciar():
     threading.Thread(target=vigia, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", PORTA), Pagina)
     url = f"http://localhost:{PORTA}"
-    print(tr(f"Troca Lossless em {url}  (Ctrl+C para sair)", f"Troca Lossless at {url}  (Ctrl+C to quit)"))
+    print(tr(f"Music Lossless em {url}  (Ctrl+C para sair)", f"Music Lossless at {url}  (Ctrl+C to quit)"))
     if "--sem-navegador" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

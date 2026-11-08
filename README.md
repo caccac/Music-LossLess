@@ -1,4 +1,4 @@
-# Music LossLess
+# Music Lossless
 
 **Upgrade your Apple Music library on the Mac to Lossless and Dolby Atmos, and clean up duplicates without losing play counts or playlists.**
 
@@ -6,7 +6,7 @@
 
 Songs you uploaded or matched years ago with iTunes Match / Sync Library never play in Lossless or Dolby Atmos, even when the same album is in the Apple Music catalog. Apple Music has no "replace with catalog version" button, and doing it by hand loses play counts, ratings, favorites and playlist positions.
 
-Troca Lossless is a small local tool (one Python file and one web page) that does it for you:
+Music Lossless is a small local tool (one Python file and one web page) that does it for you:
 
 - **Swap for Lossless / Atmos.** Finds every *Uploaded*, *Matched* or *No Longer Available* track, looks up the same album in the Apple Music catalog, adds the catalog version and replaces the old one. It also finds Apple Music albums in your library that have no Dolby Atmos when another edition of the same album does.
 - **Remove duplicates.** Same title, artist and album, with lengths within 3 seconds. The best-quality copy stays: a lossless file on the Mac first, then Apple Music, then Purchased, then Matched, then Uploaded, then the highest bitrate.
@@ -38,7 +38,7 @@ Nothing changes until you review the list and click **Apply**. Pre-selected item
 
 In [Certificates, Identifiers & Profiles › Identifiers](https://developer.apple.com/account/resources/identifiers/list), click **+**, choose **Media IDs**, then fill in:
 
-- **Description:** anything, for example `Troca Lossless`.
+- **Description:** anything, for example `Music Lossless`.
 - **Identifier:** must start with `media.`, for example `media.com.yourname.trocalossless`.
 - Check **MusicKit**, then click Continue and Register.
 
@@ -73,6 +73,8 @@ Or double-click `Abrir.command`. Your browser opens at <http://localhost:8765>.
 5. **Apply.** Try a single album first and check it in the Music app.
 
 The **Duplicates** tab lists the duplicates and applies the same backup and merge steps.
+
+When you no longer need the backup, **Move backup to Trash** sends the backup folder to the macOS Trash. It shows how many files and how much space first, and it stays disabled while a task is running or songs are still waiting for iCloud, because until they arrive the backup is the only copy. Nothing is deleted for good until you empty the Trash.
 
 The first time, macOS asks to allow Terminal, or whatever app runs the script, to control **Music**. Allow it.
 

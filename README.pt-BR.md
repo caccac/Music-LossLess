@@ -1,4 +1,4 @@
-# Troca Lossless
+# Music Lossless
 
 [English](README.md)
 
@@ -25,6 +25,7 @@ A interface está em **português** e **inglês**: segue o idioma do navegador e
 4. **Analisar biblioteca**. Leva alguns minutos na primeira vez; as buscas ficam em cache.
 5. Revise a lista. Vêm marcados só os álbuns de confiança **alta**: todas as faixas casaram e o álbum e o artista conferem. Use os filtros e o link "abrir" para checar os outros.
 6. **Aplicar**.
+7. Quando não precisar mais do backup, **Mover backup para o Lixo** manda a pasta para o Lixo do Mac. Antes, mostra quantos arquivos e quanto espaço ocupam. Fica bloqueado enquanto houver tarefa rodando ou músicas aguardando o iCloud, porque até elas chegarem o backup é a única cópia. Nada é apagado de vez até você esvaziar o Lixo.
 
 Na primeira vez, o macOS pede permissão para o Terminal (ou o app que rodar o script) controlar o app Música.
 

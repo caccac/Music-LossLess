@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Troca Lossless</title>
+<title>Music Lossless</title>
 <style>
 :root{--bg:#f6f6f8;--card:#fff;--tx:#1d1d1f;--mut:#6e6e73;--bd:#e3e3e8;--ac:#fa2d48;--ok:#1f9d55;--warn:#c77700;--chip:#f0f0f3}
 @media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1e1e21;--tx:#f2f2f4;--mut:#9a9aa1;--bd:#333338;--ac:#ff4d66;--ok:#3ecf7a;--warn:#f0a030;--chip:#2a2a2e}}
@@ -48,7 +48,7 @@ a{color:var(--ac)}
 <body>
 <main>
   <div class="topo">
-    <h1>Troca Lossless</h1>
+    <h1>Music Lossless</h1>
     <div class="idioma" role="group" aria-label="Idioma / Language">
       <button id="lang-pt" onclick="mudarIdioma('pt')">PT</button>
       <button id="lang-en" onclick="mudarIdioma('en')">EN</button>
@@ -80,6 +80,12 @@ a{color:var(--ac)}
     <div id="tarefaTxt" class="mut"></div>
     <progress id="prog" value="0" max="1" class="esc"></progress>
     <div id="log" class="esc"></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i="bkTitulo"></h2>
+    <p class="mut" id="bkInfo" style="margin:0 0 10px"></p>
+    <div class="linha"><button class="sec" id="bApagarBk" onclick="apagarBackup()" data-i="bkBotao"></button><span id="bkAviso" class="mut"></span></div>
   </section>
 
   <section class="card">
@@ -138,6 +144,11 @@ pt:{
   cfgCaminho:'Caminho do .p8', salvar:'Salvar',
   naoConectado:'Ainda não conectado.', conectado:'✓ Conectado', loja:'loja', entrar:'Entrar no Apple Music', entrarDeNovo:'Entrar de novo',
   andamento:'Andamento', nada:'Nada em andamento.',
+  bkTitulo:'Backup das versões antigas', bkVazio:'Nenhum backup no momento.', bkBotao:'Mover backup para o Lixo',
+  bkInfo:(n,tam,p)=>`${n} arquivos (${tam}) em ${p}. São as suas faixas que foram trocadas ou removidas como repetidas.`,
+  bkRodando:'Disponível quando a tarefa em andamento terminar.',
+  bkPendentes:n=>`Disponível quando as ${n} músicas pendentes chegarem do iCloud.`,
+  bkConfirma:(n,tam)=>`Mover ${n} arquivos (${tam}) para o Lixo?\n\nPara as faixas enviadas que foram trocadas, esta é a única cópia do seu arquivo original. Elas ficam no Lixo até você esvaziá-lo.`,
   pendentesNuvem:n=>`${n} músicas trocadas aguardando o iCloud trazer a versão nova. Reproduções e playlists são acertadas sozinhas quando chegarem; deixe esta página aberta.`, servidorParado:'Servidor parado. Rode “python3 musica.py” de novo.',
   abaTrocar:'Trocar por Lossless / Atmos', abaRepetidas:'Repetidas', analisar:'Analisar biblioteca',
   analisarDeNovo:'Analisar de novo? (o que já foi trocado fica registrado)',
@@ -167,6 +178,11 @@ en:{
   cfgCaminho:'Path to the .p8', salvar:'Save',
   naoConectado:'Not connected yet.', conectado:'✓ Connected', loja:'storefront', entrar:'Sign in to Apple Music', entrarDeNovo:'Sign in again',
   andamento:'Progress', nada:'Nothing running.',
+  bkTitulo:'Old versions backup', bkVazio:'No backup at the moment.', bkBotao:'Move backup to Trash',
+  bkInfo:(n,tam,p)=>`${n} files (${tam}) in ${p}. These are your own tracks that were swapped or removed as duplicates.`,
+  bkRodando:'Available when the running task finishes.',
+  bkPendentes:n=>`Available once the ${n} pending songs arrive from iCloud.`,
+  bkConfirma:(n,tam)=>`Move ${n} files (${tam}) to the Trash?\n\nFor uploaded tracks that were swapped, this is the only copy of your original file. They stay in the Trash until you empty it.`,
   pendentesNuvem:n=>`${n} swapped songs waiting for iCloud to deliver the new version. Play counts and playlists are fixed automatically when they arrive; keep this page open.`, servidorParado:'Server stopped. Run “python3 musica.py” again.',
   abaTrocar:'Swap for Lossless / Atmos', abaRepetidas:'Duplicates', analisar:'Analyze library',
   analisarDeNovo:'Analyze again? (what was already swapped stays recorded)',
@@ -213,7 +229,7 @@ async function mudarIdioma(l){
   L=l; try{localStorage.setItem('idioma',l)}catch(e){}
   aplicarIdioma();
   try{await api('/api/idioma',{idioma:l})}catch(e){}
-  await atualizar(); if(A) carregarAnalise(true); if(R) desenharRepetidas();
+  await atualizar(); if(A) carregarAnalise(true); if(R) desenharRepetidas(); desenharBackup();
 }
 
 async function atualizar(){
@@ -233,11 +249,27 @@ async function atualizar(){
     vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
   } else $('tarefaTxt').textContent=t('nada');
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
-  if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); }
+  if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); carregarBackup(); }
+  desenharBackup();
   rodavaAntes=tf.rodando;
   if(!A&&E.temAnalise) carregarAnalise();
 }
-aplicarIdioma(); api('/api/idioma',{idioma:L}).catch(()=>{}).finally(atualizar); setInterval(atualizar,1500);
+aplicarIdioma(); api('/api/idioma',{idioma:L}).catch(()=>{}).finally(atualizar); setInterval(atualizar,1500); carregarBackup();
+
+// ── backup
+let BK=null;
+async function carregarBackup(){ try{BK=await api('/api/backup')}catch(e){return} desenharBackup(); }
+const fmtTam=b=>b>=1e9?(b/1e9).toFixed(1).replace('.',L==='pt'?',':'.')+' GB':Math.round(b/1e6)+' MB';
+function desenharBackup(){
+  if(!BK) return;
+  $('bkInfo').textContent=BK.arquivos?t('bkInfo')(BK.arquivos,fmtTam(BK.bytes),BK.pastas.join(', ')):t('bkVazio');
+  const bloqueio=E.tarefa&&E.tarefa.rodando?t('bkRodando'):(E.pendentes?t('bkPendentes')(E.pendentes):'');
+  $('bApagarBk').disabled=!BK.arquivos||!!bloqueio; $('bkAviso').textContent=BK.arquivos?bloqueio:'';
+}
+async function apagarBackup(){
+  if(!confirm(t('bkConfirma')(BK.arquivos,fmtTam(BK.bytes)))) return;
+  try{await api('/api/backup/apagar',{}); await carregarBackup(); await atualizar();}catch(e){erro(e)}
+}
 
 function mostrarCfg(){vis($('cfgForm'),true);vis($('cfgOk'),false)}
 async function salvarCfg(){
@@ -254,7 +286,7 @@ function carregarMusicKit(){
 async function entrar(){
   try{
     await carregarMusicKit();
-    const mk=await MusicKit.configure({developerToken:E.devToken,app:{name:'Troca Lossless',build:'1.0'}});
+    const mk=await MusicKit.configure({developerToken:E.devToken,app:{name:'Music Lossless',build:'1.0'}});
     const tok=await mk.authorize();
     await api('/api/login',{token:tok}); await atualizar();
   }catch(e){erro(e)}
