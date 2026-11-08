@@ -1,4 +1,4 @@
-# Troca Lossless
+# Music LossLess
 
 **Upgrade your Apple Music library on the Mac to Lossless and Dolby Atmos, and clean up duplicates without losing play counts or playlists.**
 
