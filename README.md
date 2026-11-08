@@ -13,15 +13,15 @@ Troca Lossless is a small local tool (one Python file and one web page) that doe
 
 Every replacement, whether from the catalog or from a duplicate:
 
-1. **Backs up your own files first.** Uploaded and matched tracks are downloaded and copied to `~/Music/Backup versões antigas/Artist/Album/`. If a download fails, that track is not deleted.
+1. **Backs up your own files first.** Uploaded and matched tracks are downloaded and copied to `~/Music/Old versions backup/Artist/Album/` (`Backup versões antigas` in Portuguese; whichever folder already exists is kept). If a download fails, that track is not deleted.
 2. **Moves your data to the track that stays:** play count (added up), last played date, star rating, favorite and dislike.
 3. **Keeps your playlists intact.** The new track takes the old one's place in the same position in every regular playlist, and the previous order is saved to `dados/playlists_antes/` first.
 4. Deletes the old track from the library, and from iCloud.
 5. Records everything in `dados/registro.jsonl`.
 
-Nothing changes until you review the list and click **Aplicar**. Pre-selected items are only the high-confidence ones: every track matched, and the album and artist agree.
+Nothing changes until you review the list and click **Apply**. Pre-selected items are only the high-confidence ones: every track matched, and the album and artist agree.
 
-> The interface is in Brazilian Portuguese, and so are the backup folder and the playlist names the tool creates. The labels used below are listed in [Interface glossary](#interface-glossary).
+> The interface is available in **English** and **Brazilian Portuguese**. It follows your browser language, and the **EN / PT** switch in the top-right corner changes it. The progress log follows the same setting.
 
 ## Requirements
 
@@ -64,13 +64,13 @@ cd troca-lossless && python3 musica.py
 
 Or double-click `Abrir.command`. Your browser opens at <http://localhost:8765>.
 
-1. **Chave MusicKit:** enter the Team ID, the Key ID and the path to the `.p8`, then click **Salvar**.
-2. **Apple Music:** click **Entrar no Apple Music** and authorize.
-3. **Analisar biblioteca:** the first run takes a while, roughly 25 minutes for 5,000 albums. Catalog lookups are cached, so later runs are fast.
+1. **MusicKit key:** enter the Team ID, the Key ID and the path to the `.p8`, then click **Save**.
+2. **Apple Music:** click **Sign in to Apple Music** and authorize.
+3. **Analyze library:** the first run takes a while, roughly 25 minutes for 5,000 albums. Catalog lookups are cached, so later runs are fast.
 4. Review the list. Filter by confidence, by format (Dolby Atmos or Hi-Res) or by name, open any match in Apple Music, and expand an album to see track by track what it will become.
-5. **Aplicar.** Try a single album first and check it in the Music app.
+5. **Apply.** Try a single album first and check it in the Music app.
 
-The **Repetidas** tab lists the duplicates and applies the same backup and merge steps.
+The **Duplicates** tab lists the duplicates and applies the same backup and merge steps.
 
 The first time, macOS asks to allow Terminal, or whatever app runs the script, to control **Music**. Allow it.
 
@@ -99,25 +99,14 @@ dados/             created at runtime, git-ignored
   token_usuario.json   Music User Token (chmod 600)
   cache_catalogo.json  catalog lookup cache
   analise.json         last analysis
+  preferencias.json    interface language
   playlists_antes/     playlist order saved before each change
   registro.jsonl       one line per swapped or deleted track
 ```
 
-## Interface glossary
-
-| Label | Meaning |
-|---|---|
-| Chave MusicKit / Salvar | MusicKit key / Save |
-| Entrar no Apple Music | Sign in to Apple Music |
-| Analisar biblioteca | Analyze library |
-| Aplicar | Apply |
-| Repetidas | Duplicates |
-| Enviado / Correspondido / Indisponível | Uploaded / Matched / No Longer Available |
-| confiança alta / média / baixa | high / medium / low confidence |
-
 ## Caveats
 
-- Deleting an uploaded track removes it from iCloud. The backup copy in `~/Music/Backup versões antigas` is then the only copy, so keep it.
+- Deleting an uploaded track removes it from iCloud. The backup copy is then the only copy, so keep it.
 - Smart playlists update themselves, and the tool doesn't touch them. Playlists you follow from Apple Music can't be edited and are skipped.
 - Only the storefront of your Apple Music account is searched.
 - This is an unofficial tool, not affiliated with Apple. Try it on a few albums first.

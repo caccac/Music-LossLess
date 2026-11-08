@@ -48,8 +48,24 @@ ANALISE = DADOS / "analise.json"
 CACHE = DADOS / "cache_catalogo.json"
 REGISTRO = DADOS / "registro.jsonl"
 SNAPSHOTS = DADOS / "playlists_antes"
-BACKUP = Path.home() / "Music" / "Backup versões antigas"
-PLAYLIST_BACKUP = "zz Backup antes da troca (automático)"
+PREFS = DADOS / "preferencias.json"
+IDIOMA = {"atual": "pt"}  # "pt" ou "en"; a página escolhe
+
+
+def tr(pt, en):
+    return en if IDIOMA["atual"] == "en" else pt
+
+
+def pasta_backup():
+    # Se já existe backup em um dos idiomas, continua nele (trocar de idioma não divide os backups).
+    for nome in ("Backup versões antigas", "Old versions backup"):
+        if (Path.home() / "Music" / nome).is_dir():
+            return Path.home() / "Music" / nome
+    return Path.home() / "Music" / tr("Backup versões antigas", "Old versions backup")
+
+
+def nome_playlist_backup():
+    return tr("zz Backup antes da troca (automático)", "zz Backup before swap (automatic)")
 PORTA = 8765
 API = "https://api.music.apple.com"
 DADOS.mkdir(exist_ok=True)
@@ -80,7 +96,7 @@ class Tarefa:
     def iniciar(self, nome, fn, *args):
         with self.lock:
             if self.rodando:
-                raise RuntimeError("Já existe uma tarefa em andamento.")
+                raise RuntimeError(tr("Já existe uma tarefa em andamento.", "A task is already running."))
             self.rodando, self.nome, self.etapa = True, nome, ""
             self.feito = self.total = 0
             self.erro = None
@@ -88,10 +104,10 @@ class Tarefa:
         def alvo():
             try:
                 fn(*args)
-                self.msg("Concluído.")
+                self.msg(tr("Concluído.", "Done."))
             except Exception as e:  # noqa: BLE001
                 self.erro = str(e)
-                self.msg("ERRO: " + str(e))
+                self.msg(tr("ERRO: ", "ERROR: ") + str(e))
                 traceback.print_exc()
             finally:
                 self.rodando = False
@@ -144,7 +160,7 @@ def osa(script, args=(), js=False, timeout=3600):
     cmd = ["osascript"] + (["-l", "JavaScript"] if js else []) + ["-"] + [str(a) for a in args]
     r = subprocess.run(cmd, input=script, capture_output=True, text=True, timeout=timeout)
     if r.returncode != 0:
-        raise RuntimeError("app Música: " + r.stderr.strip()[-400:])
+        raise RuntimeError(tr("app Música: ", "Music app: ") + r.stderr.strip()[-400:])
     return r.stdout.strip()
 
 
@@ -395,13 +411,13 @@ def gerar_token(team, kid, chave, validade=60 * 60 * 24 * 30):
     r = subprocess.run([openssl, "dgst", "-sha256", "-sign", os.path.expanduser(chave)],
                        input=entrada.encode(), capture_output=True)
     if r.returncode != 0:
-        raise RuntimeError("Não consegui assinar com a chave .p8: " + r.stderr.decode()[-300:])
+        raise RuntimeError(tr("Não consegui assinar com a chave .p8: ", "Could not sign with the .p8 key: ") + r.stderr.decode()[-300:])
     der = r.stdout  # SEQUENCE { INTEGER r, INTEGER s }
     i = 2 if der[1] < 0x80 else 2 + (der[1] & 0x7F)
 
     def inteiro(i):
         if der[i] != 2:
-            raise RuntimeError("Assinatura inesperada do openssl.")
+            raise RuntimeError(tr("Assinatura inesperada do openssl.", "Unexpected signature from openssl."))
         n = der[i + 1]
         return int.from_bytes(der[i + 2:i + 2 + n], "big"), i + 2 + n
     rr, i = inteiro(i)
@@ -429,9 +445,9 @@ class AppleMusic:
 
     def req(self, metodo, caminho, params=None, usuario=False, cache_chave=None):
         if not self.dev:
-            raise RuntimeError("Configure a chave MusicKit primeiro.")
+            raise RuntimeError(tr("Configure a chave MusicKit primeiro.", "Set up the MusicKit key first."))
         if usuario and not self.user:
-            raise RuntimeError("Entre no Apple Music primeiro.")
+            raise RuntimeError(tr("Entre no Apple Music primeiro.", "Sign in to Apple Music first."))
         if cache_chave and cache_chave in self.cache:
             return self.cache[cache_chave]
         url = API + caminho + ("?" + urllib.parse.urlencode(params, safe=",[]") if params else "")
@@ -472,12 +488,14 @@ class AppleMusic:
                     time.sleep(min(30, 1.5 * 2 ** tentativa))
                     continue
                 if e.code in (401, 403):
-                    raise RuntimeError(f"Apple Music recusou o acesso ({e.code}) várias vezes seguidas. "
-                                       "Confira a chave MusicKit ou entre de novo.") from e
+                    raise RuntimeError(tr(f"Apple Music recusou o acesso ({e.code}) várias vezes seguidas. "
+                                          "Confira a chave MusicKit ou entre de novo.",
+                                          f"Apple Music refused access ({e.code}) several times in a row. "
+                                          "Check the MusicKit key or sign in again.")) from e
                 raise RuntimeError(f"Apple Music API {e.code}: {e.read()[:300]!r}") from e
             except (urllib.error.URLError, TimeoutError, ConnectionError):
                 time.sleep(min(60, 2 ** tentativa))
-        raise RuntimeError("Apple Music não respondeu: " + caminho)
+        raise RuntimeError(tr("Apple Music não respondeu: ", "Apple Music did not respond: ") + caminho)
 
 
 AM = AppleMusic()
@@ -547,7 +565,7 @@ def albuns_da_biblioteca():
             cat = (a.get("relationships", {}).get("catalog", {}) or {}).get("data") or []
             if cat:
                 mapa[(norm_artista(at.get("artistName")), norm(at.get("name")))] = cat[0]["id"]
-        T.msg(f"   álbuns da biblioteca na nuvem: {offset + len(d.get('data', []))}")
+        T.msg(tr("   álbuns da biblioteca na nuvem: ", "   cloud library albums: ") + str(offset + len(d.get("data", []))))
         if not d.get("next"):
             break
         offset += 100
@@ -674,27 +692,29 @@ def processar_grupo(g, atual):
                        "dur": l["duration"], "new": n["id"], "novoNome": n["nome"], "novoDur": n["dur"]})
     sem_par = [g["faixas"][i]["name"] for i in range(len(g["faixas"])) if i not in a["pares"]]
     info = {k: c[k] for k in ("id", "nome", "artista", "url", "variants", "arte", "ano")}
-    return {"id": g["id"], "tipo": g["tipo"], "artista": g["artista"], "album": g["album"] or "(sem álbum)",
+    return {"id": g["id"], "tipo": g["tipo"], "artista": g["artista"], "album": g["album"] or tr("(sem álbum)", "(no album)"),
             "status": dict(Counter(t["cloudStatus"] for t in g["faixas"])), "nFaixas": len(g["faixas"]),
             "catalogo": info, "conf": ["", "baixa", "média", "alta"][a["conf"]],
             "cobertura": round(a["cob"], 3), "faixas": faixas, "semPar": sem_par}
 
 
 def job_analisar():
-    T.passo("Lendo a biblioteca do app Música…")
+    T.passo(tr("Lendo a biblioteca do app Música…", "Reading the Music library…"))
     faixas = exportar_biblioteca()
     grupos = agrupar(faixas)
     n_trocar = sum(g["tipo"] == "trocar" for g in grupos)
-    T.msg(f"{len(faixas)} faixas. {n_trocar} álbuns com faixas enviadas/correspondidas/indisponíveis; "
-          f"{len(grupos) - n_trocar} álbuns do Apple Music para checar se existe edição com Atmos.")
+    T.msg(tr(f"{len(faixas)} faixas. {n_trocar} álbuns com faixas enviadas/correspondidas/indisponíveis; "
+             f"{len(grupos) - n_trocar} álbuns do Apple Music para checar se existe edição com Atmos.",
+             f"{len(faixas)} tracks. {n_trocar} albums with uploaded/matched/unavailable tracks; "
+             f"{len(grupos) - n_trocar} Apple Music albums to check for a Dolby Atmos edition."))
     atual = {}
     if AM.user:
-        T.passo("Lendo os álbuns da biblioteca na nuvem…")
+        T.passo(tr("Lendo os álbuns da biblioteca na nuvem…", "Reading the cloud library albums…"))
         try:
             atual = albuns_da_biblioteca()
         except Exception as e:  # noqa: BLE001
-            T.msg(f"   não consegui ler (sigo sem): {e}")
-    T.passo("Procurando cada álbum no catálogo…", len(grupos))
+            T.msg(tr("   não consegui ler (sigo sem): ", "   could not read them (continuing without): ") + str(e))
+    T.passo(tr("Procurando cada álbum no catálogo…", "Looking up each album in the catalog…"), len(grupos))
     itens, nao_achados, falhas = [], [], 0
 
     def um(g):
@@ -707,9 +727,9 @@ def job_analisar():
             T.feito += 1
             if erro:
                 falhas += 1
-                T.msg(f"   falhou: {g['artista']} — {g['album']}: {erro}")
+                T.msg(tr("   falhou: ", "   failed: ") + f"{g['artista']} — {g['album']}: {erro}")
                 if falhas > 25 and falhas > T.feito / 2:
-                    raise RuntimeError("Muitas falhas seguidas na API; parei.")
+                    raise RuntimeError(tr("Muitas falhas seguidas na API; parei.", "Too many API failures in a row; stopped."))
             elif item:
                 itens.append(item)
             elif g["tipo"] == "trocar":
@@ -717,7 +737,8 @@ def job_analisar():
                                     "status": dict(Counter(t["cloudStatus"] for t in g["faixas"])),
                                     "nFaixas": len(g["faixas"])})
             if T.feito % 50 == 0:
-                T.msg(f"   {T.feito}/{len(grupos)} álbuns — {len(itens)} com versão melhor")
+                T.msg(tr(f"   {T.feito}/{len(grupos)} álbuns — {len(itens)} com versão melhor",
+                         f"   {T.feito}/{len(grupos)} albums — {len(itens)} with a better version"))
     AM.salvar_cache(True)
     feitos = {i["id"] for i in (carregar(ANALISE, {}) or {}).get("itens", []) if i.get("feito")}
     for i in itens:
@@ -726,15 +747,18 @@ def job_analisar():
     nao_achados.sort(key=lambda i: (norm(i["artista"]), norm(i["album"])))
     salvar(ANALISE, {"quando": datetime.now().isoformat(timespec="seconds"), "storefront": AM.sf,
                      "itens": itens, "naoAchados": nao_achados, "falhas": falhas})
-    T.msg(f"Pronto: {len(itens)} álbuns com versão melhor; {len(nao_achados)} sem equivalente no catálogo."
-          + (f" {falhas} falharam — analise de novo para tentar só esses (o resto vem do cache)." if falhas else ""))
+    T.msg(tr(f"Pronto: {len(itens)} álbuns com versão melhor; {len(nao_achados)} sem equivalente no catálogo.",
+             f"Done: {len(itens)} albums with a better version; {len(nao_achados)} with no catalog match.")
+          + (tr(f" {falhas} falharam — analise de novo para tentar só esses (o resto vem do cache).",
+                f" {falhas} failed — analyze again to retry just those (the rest comes from the cache).")
+             if falhas else ""))
 
 
 # ───────────────────────── troca (comum a tudo) ─────────────────────────
 
 def destino_backup(t, origem):
     seguro = lambda s: re.sub(r'[/:\\]', "-", (s or "Sem nome").strip())[:120] or "Sem nome"  # noqa: E731
-    pasta = BACKUP / seguro(t["albumArtist"] or t["artist"]) / seguro(t["album"])
+    pasta = pasta_backup() / seguro(t["albumArtist"] or t["artist"]) / seguro(t["album"])
     pasta.mkdir(parents=True, exist_ok=True)
     alvo = pasta / Path(origem).name
     n = 2
@@ -745,14 +769,16 @@ def destino_backup(t, origem):
 
 
 def fazer_backup(ids, por_id):
-    """Baixa e copia as faixas para BACKUP. Devolve os ids que estão salvos com segurança."""
+    """Baixa e copia as faixas para a pasta de backup. Devolve os ids que estão salvos com segurança."""
     if not ids:
         return set()
     locais = arquivos_locais()
     faltam = [i for i in ids if i not in locais]
     if faltam:
-        T.msg(f"Baixando {len(faltam)} faixas antigas para o backup…")
-        osa(AS_PLAYLIST_BACKUP, [PLAYLIST_BACKUP, ",".join(map(str, faltam))])
+        T.msg(tr(f"Baixando {len(faltam)} faixas antigas para o backup…",
+                 f"Downloading {len(faltam)} old tracks for the backup…"))
+        nome_pl = nome_playlist_backup()
+        osa(AS_PLAYLIST_BACKUP, [nome_pl, ",".join(map(str, faltam))])
         ultimo_avanco, antes = time.time(), -1
         limite_sem_avanco = 240
         while True:
@@ -762,13 +788,15 @@ def fazer_backup(ids, por_id):
                 break
             if prontos != antes:
                 antes, ultimo_avanco = prontos, time.time()
-                T.msg(f"   baixadas {prontos}/{len(faltam)}")
+                T.msg(tr("   baixadas ", "   downloaded ") + f"{prontos}/{len(faltam)}")
             elif time.time() - ultimo_avanco > limite_sem_avanco:
-                T.msg(f"   {len(faltam) - prontos} não baixaram em {limite_sem_avanco // 60} min; "
-                      "essas ficam na biblioteca.")
+                T.msg(tr(f"   {len(faltam) - prontos} não baixaram em {limite_sem_avanco // 60} min; "
+                         "essas ficam na biblioteca.",
+                         f"   {len(faltam) - prontos} did not download in {limite_sem_avanco // 60} min; "
+                         "those stay in the library."))
                 break
             time.sleep(10)
-        osa(AS_APAGAR_PLAYLIST, [PLAYLIST_BACKUP])
+        osa(AS_APAGAR_PLAYLIST, [nome_pl])
     ok = set()
     for i in ids:
         origem = locais.get(i)
@@ -779,7 +807,8 @@ def fazer_backup(ids, por_id):
             shutil.copy2(origem, alvo)
         if alvo.stat().st_size == Path(origem).stat().st_size:
             ok.add(i)
-    T.msg(f"   backup: {len(ok)}/{len(ids)} faixas copiadas para {BACKUP}")
+    T.msg(tr(f"   backup: {len(ok)}/{len(ids)} faixas copiadas para {pasta_backup()}",
+             f"   backup: {len(ok)}/{len(ids)} tracks copied to {pasta_backup()}"))
     return ok
 
 
@@ -812,8 +841,9 @@ def juntar_metadados(pares, por_id):
     for lote in em_lotes(ops, 150):
         for _, r in json.loads(osa(JS_METADADOS, [json.dumps(lote)], js=True)):
             erros += r != "ok"
-    T.msg(f"   reproduções/notas/favoritos copiados para {len(ops) - erros} faixas"
-          + (f" ({erros} falharam)" if erros else ""))
+    T.msg(tr(f"   reproduções/notas/favoritos copiados para {len(ops) - erros} faixas",
+             f"   play counts/ratings/favorites copied to {len(ops) - erros} tracks")
+          + (tr(f" ({erros} falharam)", f" ({erros} failed)") if erros else ""))
 
 
 def atualizar_playlists(mapa):
@@ -839,10 +869,13 @@ def atualizar_playlists(mapa):
             inicio += 1
         r = osa(AS_REFAZER_PLAYLIST, [p["pid"], inicio + 1, len(fx), ",".join(map(str, novo[inicio:]))])
         if r.startswith("mudou"):
-            T.msg(f"   playlist “{p['nome']}” mudou durante a troca; não mexi nela.")
+            T.msg(tr(f"   playlist “{p['nome']}” mudou durante a troca; não mexi nela.",
+                     f"   playlist “{p['nome']}” changed during the swap; left it alone."))
         elif r != "ok:0":
-            T.msg(f"   playlist “{p['nome']}”: {r.split(':')[1]} faixas não entraram.")
-    T.msg(f"   {len(afetadas)} playlists atualizadas (cópia de antes em dados/playlists_antes)")
+            T.msg(tr(f"   playlist “{p['nome']}”: {r.split(':')[1]} faixas não entraram.",
+                     f"   playlist “{p['nome']}”: {r.split(':')[1]} tracks could not be added."))
+    T.msg(tr(f"   {len(afetadas)} playlists atualizadas (cópia de antes em dados/playlists_antes)",
+             f"   {len(afetadas)} playlists updated (previous order saved in dados/playlists_antes)"))
 
 
 def trocar(pares, faixas, motivo):
@@ -874,8 +907,9 @@ def trocar(pares, faixas, motivo):
                                 "nova": {k: b.get(k) for k in ("databaseID", "persistentID", "name", "artist",
                                                                 "album", "cloudStatus")}},
                                ensure_ascii=False) + "\n")
-    T.msg(f"   {len(apagadas)} faixas antigas removidas da biblioteca"
-          + (f"; {len(falhas)} não consegui remover" if falhas else ""))
+    T.msg(tr(f"   {len(apagadas)} faixas antigas removidas da biblioteca",
+             f"   {len(apagadas)} old tracks removed from the library")
+          + (tr(f"; {len(falhas)} não consegui remover", f"; {len(falhas)} could not be removed") if falhas else ""))
     return apagadas
 
 
@@ -885,8 +919,8 @@ def job_aplicar(ids):
     an = carregar(ANALISE, {})
     escolhidos = [i for i in an.get("itens", []) if i["id"] in set(ids) and not i.get("feito")]
     if not escolhidos:
-        raise RuntimeError("Nada selecionado (ou já aplicado).")
-    T.passo(f"Trocando {len(escolhidos)} álbuns…", len(escolhidos))
+        raise RuntimeError(tr("Nada selecionado (ou já aplicado).", "Nothing selected (or already applied)."))
+    T.passo(tr(f"Trocando {len(escolhidos)} álbuns…", f"Swapping {len(escolhidos)} albums…"), len(escolhidos))
     for lote in em_lotes(escolhidos, 12):
         aplicar_lote(lote)
         T.feito += len(lote)
@@ -900,8 +934,9 @@ def job_aplicar(ids):
 
 def aplicar_lote(lote):
     songs = list(dict.fromkeys(f["new"] for i in lote for f in i["faixas"]))
-    T.msg(f"Adicionando {len(songs)} faixas do catálogo à biblioteca "
-          f"({', '.join(i['album'] for i in lote[:3])}{'…' if len(lote) > 3 else ''})")
+    T.msg(tr(f"Adicionando {len(songs)} faixas do catálogo à biblioteca ",
+             f"Adding {len(songs)} catalog tracks to the library ")
+          + f"({', '.join(i['album'] for i in lote[:3])}{'…' if len(lote) > 3 else ''})")
     for ch in em_lotes(songs, 50):
         AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
     antigos = {f["old"] for i in lote for f in i["faixas"]}
@@ -924,7 +959,8 @@ def aplicar_lote(lote):
                 achados[k] = max(cands, key=lambda t: t["dateAdded"] or "")["databaseID"]
         if len(achados) == len(esperado) or time.time() - inicio > 600:
             break
-        T.msg(f"   aguardando o iCloud: {len(achados)}/{len(esperado)} faixas novas apareceram no Mac")
+        T.msg(tr(f"   aguardando o iCloud: {len(achados)}/{len(esperado)} faixas novas apareceram no Mac",
+                 f"   waiting for iCloud: {len(achados)}/{len(esperado)} new tracks have reached the Mac"))
         time.sleep(20)
     pares = [(old, new) for (_, old), new in achados.items()]
     apagadas = trocar(pares, faixas, "catálogo")
@@ -973,11 +1009,12 @@ def achar_repetidas(faixas):
 
 
 def job_repetidas(ids):
-    T.passo("Lendo a biblioteca…")
+    T.passo(tr("Lendo a biblioteca…", "Reading the library…"))
     faixas = exportar_biblioteca()
     grupos = [g for g in achar_repetidas(faixas) if g["id"] in set(ids)]
     pares = [(r["databaseID"], g["manter"]["databaseID"]) for g in grupos for r in g["remover"]]
-    T.passo(f"Removendo {len(pares)} repetidas de {len(grupos)} músicas…")
+    T.passo(tr(f"Removendo {len(pares)} repetidas de {len(grupos)} músicas…",
+               f"Removing {len(pares)} duplicates of {len(grupos)} songs…"))
     trocar(pares, faixas, "repetida")
 
 
@@ -985,14 +1022,14 @@ def job_repetidas(ids):
 
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
-            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "backup": str(BACKUP),
+            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
             "config": {k: v for k, v in (carregar(CONFIG, {}) or {}).items()}}
 
 
 def configurar(cfg):
     caminho = os.path.expanduser(cfg.get("key_path", "").strip())
     if not Path(caminho).is_file():
-        raise RuntimeError(f"Não achei o arquivo .p8 em {caminho}")
+        raise RuntimeError(tr(f"Não achei o arquivo .p8 em {caminho}", f".p8 file not found at {caminho}"))
     dev = gerar_token(cfg["team_id"].strip(), cfg["key_id"].strip(), caminho)
     antigo, AM.dev = AM.dev, dev
     try:
@@ -1057,18 +1094,21 @@ class Pagina(BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length") or 0)
             corpo = json.loads(self.rfile.read(n) or b"{}")
-            if caminho == "/api/config":
+            if caminho == "/api/idioma":
+                IDIOMA["atual"] = "en" if corpo.get("idioma") == "en" else "pt"
+                salvar(PREFS, {"idioma": IDIOMA["atual"]})
+            elif caminho == "/api/config":
                 configurar(corpo)
             elif caminho == "/api/login":
                 entrar(corpo["token"])
             elif caminho == "/api/analisar":
                 if not AM.user:
-                    raise RuntimeError("Entre no Apple Music primeiro.")
-                T.iniciar("Análise", job_analisar)
+                    raise RuntimeError(tr("Entre no Apple Music primeiro.", "Sign in to Apple Music first."))
+                T.iniciar(tr("Análise", "Analysis"), job_analisar)
             elif caminho == "/api/aplicar":
-                T.iniciar("Troca", job_aplicar, corpo.get("ids") or [])
+                T.iniciar(tr("Troca", "Swap"), job_aplicar, corpo.get("ids") or [])
             elif caminho == "/api/repetidas":
-                T.iniciar("Repetidas", job_repetidas, corpo.get("ids") or [])
+                T.iniciar(tr("Repetidas", "Duplicates"), job_repetidas, corpo.get("ids") or [])
             else:
                 return self._json({"erro": "não encontrado"}, 404)
             self._json(estado())
@@ -1079,6 +1119,7 @@ class Pagina(BaseHTTPRequestHandler):
 
 def iniciar():
     DADOS.mkdir(exist_ok=True)
+    IDIOMA["atual"] = (carregar(PREFS, {}) or {}).get("idioma", "pt")
     cfg = carregar(CONFIG)
     if cfg:
         try:
@@ -1090,7 +1131,7 @@ def iniciar():
         AM.user, AM.sf = tok.get("token"), tok.get("storefront") or "br"
     srv = ThreadingHTTPServer(("127.0.0.1", PORTA), Pagina)
     url = f"http://localhost:{PORTA}"
-    print(f"Troca Lossless em {url}  (Ctrl+C para sair)")
+    print(tr(f"Troca Lossless em {url}  (Ctrl+C para sair)", f"Troca Lossless at {url}  (Ctrl+C to quit)"))
     if "--sem-navegador" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

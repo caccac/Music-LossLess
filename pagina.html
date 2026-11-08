@@ -12,12 +12,16 @@ body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,
 main{max-width:1100px;margin:0 auto;padding:24px 16px 80px}
 h1{font-size:26px;margin:0 0 4px}
 h2{font-size:18px;margin:0 0 10px}
+.topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .sub{color:var(--mut);margin:0 0 22px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:16px}
 .linha{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 button{font:inherit;border:0;border-radius:9px;padding:8px 14px;background:var(--ac);color:#fff;cursor:pointer;font-weight:600}
 button.sec{background:var(--chip);color:var(--tx)}
 button:disabled{opacity:.45;cursor:default}
+.idioma{display:flex;border:1px solid var(--bd);border-radius:9px;overflow:hidden;flex:none}
+.idioma button{border-radius:0;background:transparent;color:var(--mut);padding:5px 10px;font-weight:600;font-size:12px}
+.idioma button.on{background:var(--tx);color:var(--bg)}
 input[type=text],select{font:inherit;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}
 input[type=text]{min-width:220px}
 label.campo{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)}
@@ -43,87 +47,149 @@ a{color:var(--ac)}
 </head>
 <body>
 <main>
-  <h1>Troca Lossless</h1>
-  <p class="sub">Troca as faixas antigas da biblioteca do app Música pelas versões Lossless / Dolby Atmos do catálogo e remove repetidas. Antes de apagar qualquer arquivo seu, ele é baixado e copiado para <span id="pastaBackup">~/Music/Backup versões antigas</span>.</p>
+  <div class="topo">
+    <h1>Troca Lossless</h1>
+    <div class="idioma" role="group" aria-label="Idioma / Language">
+      <button id="lang-pt" onclick="mudarIdioma('pt')">PT</button>
+      <button id="lang-en" onclick="mudarIdioma('en')">EN</button>
+    </div>
+  </div>
+  <p class="sub"><span data-i="intro"></span> <span id="pastaBackup"></span>.</p>
 
   <section class="card" id="cConfig">
-    <h2>1. Chave MusicKit</h2>
-    <div id="cfgOk" class="esc"><span class="ok">✓ Chave configurada.</span> <button class="sec" onclick="mostrarCfg()">Trocar chave</button></div>
+    <h2 data-i="cfgTitulo"></h2>
+    <div id="cfgOk" class="esc"><span class="ok" data-i="cfgOk"></span> <button class="sec" onclick="mostrarCfg()" data-i="cfgTrocar"></button></div>
     <div id="cfgForm">
-      <p class="mut">No <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">portal de desenvolvedor › Keys</a>, crie uma chave com <b>Media Services (MusicKit)</b> e baixe o arquivo .p8.</p>
+      <p class="mut" data-i="cfgAjuda" data-html></p>
       <div class="linha">
         <label class="campo">Team ID<input type="text" id="team" placeholder="ABCDE12345" style="min-width:140px"></label>
         <label class="campo">Key ID<input type="text" id="kid" placeholder="XYZ987654" style="min-width:140px"></label>
-        <label class="campo" style="flex:1">Caminho do .p8<input type="text" id="kpath" placeholder="~/Downloads/AuthKey_XYZ987654.p8"></label>
-        <button onclick="salvarCfg()" style="align-self:flex-end">Salvar</button>
+        <label class="campo" style="flex:1"><span data-i="cfgCaminho"></span><input type="text" id="kpath" placeholder="~/Downloads/AuthKey_XYZ987654.p8"></label>
+        <button onclick="salvarCfg()" style="align-self:flex-end" data-i="salvar"></button>
       </div>
     </div>
   </section>
 
   <section class="card" id="cLogin">
     <h2>2. Apple Music</h2>
-    <div class="linha"><span id="loginTxt" class="mut">Ainda não conectado.</span><button id="bLogin" onclick="entrar()">Entrar no Apple Music</button></div>
+    <div class="linha"><span id="loginTxt" class="mut"></span><button id="bLogin" onclick="entrar()"></button></div>
   </section>
 
   <section class="card">
-    <h2>Andamento</h2>
-    <div id="tarefaTxt" class="mut">Nada em andamento.</div>
+    <h2 data-i="andamento"></h2>
+    <div id="tarefaTxt" class="mut"></div>
     <progress id="prog" value="0" max="1" class="esc"></progress>
     <div id="log" class="esc"></div>
   </section>
 
   <section class="card">
     <div class="linha tabs" style="margin-bottom:12px">
-      <button id="tabT" class="on" onclick="aba('T')">Trocar por Lossless / Atmos</button>
-      <button id="tabR" onclick="aba('R')">Repetidas</button>
+      <button id="tabT" class="on" onclick="aba('T')" data-i="abaTrocar"></button>
+      <button id="tabR" onclick="aba('R')" data-i="abaRepetidas"></button>
     </div>
 
     <div id="painelT">
       <div class="linha">
-        <button id="bAnalisar" onclick="analisar()">Analisar biblioteca</button>
+        <button id="bAnalisar" onclick="analisar()" data-i="analisar"></button>
         <span id="analiseTxt" class="mut"></span>
       </div>
       <div id="filtros" class="linha esc" style="margin-top:14px">
         <select id="fTipo" onchange="desenhar()">
-          <option value="">Tudo</option>
-          <option value="trocar">Enviadas / correspondidas / indisponíveis</option>
-          <option value="atmos">Apple Music → edição com Atmos</option>
+          <option value="" data-i="fTudo"></option>
+          <option value="trocar" data-i="fTrocar"></option>
+          <option value="atmos" data-i="fAtmos"></option>
         </select>
         <select id="fConf" onchange="desenhar()">
-          <option value="">Qualquer confiança</option><option>alta</option><option>média</option><option>baixa</option>
+          <option value="" data-i="fConf"></option><option value="alta" data-i="conf_alta"></option><option value="média" data-i="conf_média"></option><option value="baixa" data-i="conf_baixa"></option>
         </select>
         <select id="fVar" onchange="desenhar()">
-          <option value="">Qualquer formato</option><option value="dolby-atmos">Com Dolby Atmos</option><option value="hi-res-lossless">Hi-Res Lossless</option>
+          <option value="" data-i="fFormato"></option><option value="dolby-atmos" data-i="fComAtmos"></option><option value="hi-res-lossless">Hi-Res Lossless</option>
         </select>
-        <input type="text" id="fBusca" placeholder="Buscar artista ou álbum" oninput="desenhar()">
-        <label class="linha mut"><input type="checkbox" id="fFeitos" onchange="desenhar()"> mostrar já trocados</label>
+        <input type="text" id="fBusca" data-i-ph="fBusca" oninput="desenhar()">
+        <label class="linha mut"><input type="checkbox" id="fFeitos" onchange="desenhar()"> <span data-i="fFeitos"></span></label>
       </div>
       <div id="lista"></div>
-      <div id="mais" class="esc" style="text-align:center;padding:12px"><button class="sec" onclick="limite+=200;desenhar()">Mostrar mais</button></div>
+      <div id="mais" class="esc" style="text-align:center;padding:12px"><button class="sec" onclick="limite+=200;desenhar()" data-i="mais"></button></div>
       <details id="naoAchados" class="esc" style="margin-top:14px"><summary></summary><ul id="naoLista" class="mut"></ul></details>
       <div class="barra esc" id="barraT"><div class="linha">
-        <button class="sec" onclick="marcarVisiveis(true)">Marcar visíveis</button>
-        <button class="sec" onclick="marcarVisiveis(false)">Desmarcar visíveis</button>
+        <button class="sec" onclick="marcarVisiveis(true)" data-i="marcarVis"></button>
+        <button class="sec" onclick="marcarVisiveis(false)" data-i="desmarcarVis"></button>
         <span id="selTxt" class="mut" style="flex:1"></span>
-        <button id="bAplicar" onclick="aplicar()">Aplicar</button>
+        <button id="bAplicar" onclick="aplicar()" data-i="aplicar"></button>
       </div></div>
     </div>
 
     <div id="painelR" class="esc">
-      <div class="linha"><button onclick="carregarRepetidas()">Procurar repetidas</button><span id="repTxt" class="mut"></span></div>
+      <div class="linha"><button onclick="carregarRepetidas()" data-i="procurarRep"></button><span id="repTxt" class="mut"></span></div>
       <div id="repLista"></div>
       <div class="barra esc" id="barraR"><div class="linha">
         <span id="repSel" class="mut" style="flex:1"></span>
-        <button id="bRep" onclick="aplicarRepetidas()">Remover repetidas marcadas</button>
+        <button id="bRep" onclick="aplicarRepetidas()" data-i="removerRep"></button>
       </div></div>
     </div>
   </section>
 </main>
 <script>
-const H={'Content-Type':'application/json','X-Troca':'1'};
-const ST={uploaded:'Enviado',matched:'Correspondido','no longer available':'Indisponível',subscription:'Apple Music',purchased:'Comprado',unknown:'Desconhecido'};
+const TXT={
+pt:{
+  intro:'Troca as faixas antigas da biblioteca do app Música pelas versões Lossless / Dolby Atmos do catálogo e remove repetidas. Antes de apagar qualquer arquivo seu, ele é baixado e copiado para',
+  cfgTitulo:'1. Chave MusicKit', cfgOk:'✓ Chave configurada.', cfgTrocar:'Trocar chave',
+  cfgAjuda:'No <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" rel="noopener">portal de desenvolvedor</a>, crie um <b>Media ID</b> (Identifiers › + › Media IDs, com MusicKit). Depois, em <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">Keys</a>, crie uma chave com <b>Media Services (MusicKit)</b> ligada a esse Media ID e baixe o arquivo .p8.',
+  cfgCaminho:'Caminho do .p8', salvar:'Salvar',
+  naoConectado:'Ainda não conectado.', conectado:'✓ Conectado', loja:'loja', entrar:'Entrar no Apple Music', entrarDeNovo:'Entrar de novo',
+  andamento:'Andamento', nada:'Nada em andamento.', servidorParado:'Servidor parado. Rode “python3 musica.py” de novo.',
+  abaTrocar:'Trocar por Lossless / Atmos', abaRepetidas:'Repetidas', analisar:'Analisar biblioteca',
+  analisarDeNovo:'Analisar de novo? (o que já foi trocado fica registrado)',
+  resumo:(d,nT,nA,nf)=>`Análise de ${d}: ${nT} álbuns para trocar, ${nA} com edição em Atmos, ${nf} faixas.`,
+  falhas:n=>` ⚠︎ ${n} álbuns falharam na consulta; clique em Analisar de novo para tentar só esses.`,
+  naoAchados:n=>`${n} álbuns sem equivalente no catálogo (ficam como estão)`, faixasN:n=>`${n} faixas`,
+  fTudo:'Tudo', fTrocar:'Enviadas / correspondidas / indisponíveis', fAtmos:'Apple Music → edição com Atmos',
+  fConf:'Qualquer confiança', conf_alta:'alta', 'conf_média':'média', conf_baixa:'baixa', confianca:c=>`confiança ${c}`,
+  fFormato:'Qualquer formato', fComAtmos:'Com Dolby Atmos', fBusca:'Buscar artista ou álbum', fFeitos:'mostrar já trocados',
+  mais:'Mostrar mais', marcarVis:'Marcar visíveis', desmarcarVis:'Desmarcar visíveis', aplicar:'Aplicar',
+  semAtmos:'versão atual sem Atmos', faixasDe:(a,b)=>`${a}/${b} faixas`, abrir:'abrir', trocado:'✓ trocado', faixas:'faixas',
+  semPar:'Sem par no catálogo (ficam como estão): ', pendentes:'Pendentes da última tentativa: ', vazio:'Nada com esses filtros.',
+  selecao:(a,f)=>`${a} álbuns marcados · ${f} faixas`,
+  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas, favoritos e posição nas playlists passam para elas.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
+  procurarRep:'Procurar repetidas', lendo:'Lendo a biblioteca…', removerRep:'Remover repetidas marcadas',
+  repResumo:(g,e)=>`${g} músicas repetidas (${e} cópias sobrando). Mesmo nome, artista e álbum, com duração até 3 s de diferença.`,
+  fica:'fica', sai:'sai', repSel:(g,c)=>`${g} marcadas · ${c} cópias saem`,
+  confirmarRep:(n,b)=>`Remover ${n} cópias repetidas?\n\nFica a de melhor qualidade; reproduções e playlists passam para ela. Cópias que são arquivos seus são baixadas e copiadas para ${b} antes de sair.`,
+  st:{uploaded:'Enviado',matched:'Correspondido','no longer available':'Indisponível',subscription:'Apple Music',purchased:'Comprado',unknown:'Desconhecido'},
+  mkErro:'Não consegui carregar o MusicKit JS.', locale:'pt-BR'
+},
+en:{
+  intro:'Swaps old tracks in your Music library for the Lossless / Dolby Atmos versions from the catalog, and removes duplicates. Before any file of yours is deleted, it is downloaded and copied to',
+  cfgTitulo:'1. MusicKit key', cfgOk:'✓ Key configured.', cfgTrocar:'Change key',
+  cfgAjuda:'In the <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" rel="noopener">developer portal</a>, create a <b>Media ID</b> (Identifiers › + › Media IDs, with MusicKit). Then, in <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">Keys</a>, create a key with <b>Media Services (MusicKit)</b> linked to that Media ID and download the .p8 file.',
+  cfgCaminho:'Path to the .p8', salvar:'Save',
+  naoConectado:'Not connected yet.', conectado:'✓ Connected', loja:'storefront', entrar:'Sign in to Apple Music', entrarDeNovo:'Sign in again',
+  andamento:'Progress', nada:'Nothing running.', servidorParado:'Server stopped. Run “python3 musica.py” again.',
+  abaTrocar:'Swap for Lossless / Atmos', abaRepetidas:'Duplicates', analisar:'Analyze library',
+  analisarDeNovo:'Analyze again? (what was already swapped stays recorded)',
+  resumo:(d,nT,nA,nf)=>`Analysis from ${d}: ${nT} albums to swap, ${nA} with a Dolby Atmos edition, ${nf} tracks.`,
+  falhas:n=>` ⚠︎ ${n} albums failed to look up; click Analyze library again to retry just those.`,
+  naoAchados:n=>`${n} albums with no catalog match (left as they are)`, faixasN:n=>`${n} tracks`,
+  fTudo:'Everything', fTrocar:'Uploaded / matched / unavailable', fAtmos:'Apple Music → Dolby Atmos edition',
+  fConf:'Any confidence', conf_alta:'high', 'conf_média':'medium', conf_baixa:'low', confianca:c=>`${c} confidence`,
+  fFormato:'Any format', fComAtmos:'With Dolby Atmos', fBusca:'Search artist or album', fFeitos:'show already swapped',
+  mais:'Show more', marcarVis:'Select visible', desmarcarVis:'Deselect visible', aplicar:'Apply',
+  semAtmos:'current version has no Atmos', faixasDe:(a,b)=>`${a}/${b} tracks`, abrir:'open', trocado:'✓ swapped', faixas:'tracks',
+  semPar:'No catalog match (left as they are): ', pendentes:'Pending from the last attempt: ', vazio:'Nothing matches these filters.',
+  selecao:(a,f)=>`${a} albums selected · ${f} tracks`,
+  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings, favorites and playlist positions move to them.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
+  procurarRep:'Find duplicates', lendo:'Reading the library…', removerRep:'Remove selected duplicates',
+  repResumo:(g,e)=>`${g} duplicated songs (${e} extra copies). Same title, artist and album, with lengths within 3 s.`,
+  fica:'keep', sai:'remove', repSel:(g,c)=>`${g} selected · ${c} copies removed`,
+  confirmarRep:(n,b)=>`Remove ${n} duplicate copies?\n\nThe best-quality copy stays; play counts and playlists move to it. Copies that are your own files are downloaded and copied to ${b} before they go.`,
+  st:{uploaded:'Uploaded',matched:'Matched','no longer available':'No Longer Available',subscription:'Apple Music',purchased:'Purchased',unknown:'Unknown'},
+  mkErro:'Could not load MusicKit JS.', locale:'en-US'
+}};
 const VAR={'dolby-atmos':['Dolby Atmos','atmos'],'hi-res-lossless':['Hi-Res Lossless','ll'],'lossless':['Lossless','ll']};
+const H={'Content-Type':'application/json','X-Troca':'1'};
+let L=(()=>{try{const s=localStorage.getItem('idioma');if(s)return s}catch(e){}return (navigator.language||'').toLowerCase().startsWith('pt')?'pt':'en'})();
 let E={}, A=null, sel=new Set(), limite=200, R=null, rsel=new Set(), rodavaAntes=false;
+const t=k=>TXT[L][k];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const vis=(el,v)=>el.classList.toggle('esc',!v);
@@ -133,26 +199,40 @@ async function api(p,body){
 }
 function erro(e){alert(e.message||e)}
 
+function aplicarIdioma(){
+  document.documentElement.lang=L==='pt'?'pt-BR':'en';
+  $('lang-pt').classList.toggle('on',L==='pt'); $('lang-en').classList.toggle('on',L==='en');
+  document.querySelectorAll('[data-i]').forEach(el=>{const v=t(el.dataset.i); if(el.hasAttribute('data-html')) el.innerHTML=v; else el.textContent=v;});
+  document.querySelectorAll('[data-i-ph]').forEach(el=>el.placeholder=t(el.dataset.iPh));
+}
+async function mudarIdioma(l){
+  L=l; try{localStorage.setItem('idioma',l)}catch(e){}
+  aplicarIdioma();
+  try{await api('/api/idioma',{idioma:l})}catch(e){}
+  await atualizar(); if(A) carregarAnalise(true); if(R) desenharRepetidas();
+}
+
 async function atualizar(){
-  try{E=await api('/api/estado')}catch(e){$('tarefaTxt').textContent='Servidor parado. Rode “python3 musica.py” de novo.';return}
+  try{E=await api('/api/estado')}catch(e){$('tarefaTxt').textContent=t('servidorParado');return}
+  if(E.idioma&&E.idioma!==L){api('/api/idioma',{idioma:L}).catch(()=>{})}
   $('pastaBackup').textContent=E.backup;
   vis($('cfgOk'),E.configurado); vis($('cfgForm'),!E.configurado);
   if(E.config){$('team').value||=E.config.team_id||'';$('kid').value||=E.config.key_id||'';$('kpath').value||=E.config.key_path||''}
   $('bLogin').disabled=!E.configurado;
-  $('loginTxt').innerHTML=E.logado?`<span class="ok">✓ Conectado</span> <span class="mut">(loja: ${esc(E.storefront)})</span>`:'Ainda não conectado.';
-  $('bLogin').textContent=E.logado?'Entrar de novo':'Entrar no Apple Music';
-  const t=E.tarefa;
-  $('bAnalisar').disabled=t.rodando||!E.logado; $('bAplicar').disabled=t.rodando; $('bRep').disabled=t.rodando;
-  if(t.nome){
-    $('tarefaTxt').innerHTML=(t.rodando?'⏳ ':t.erro?'<span class="warn">⚠︎</span> ':'<span class="ok">✓</span> ')+esc(t.nome+': '+(t.etapa||''))+(t.total?` — ${t.feito}/${t.total}`:'');
-    vis($('prog'),t.rodando&&t.total>0); $('prog').max=t.total||1; $('prog').value=t.feito;
-    vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=t.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
-  }
-  if(rodavaAntes&&!t.rodando){ carregarAnalise(); if(R) carregarRepetidas(); }
-  rodavaAntes=t.rodando;
+  $('loginTxt').innerHTML=E.logado?`<span class="ok">${t('conectado')}</span> <span class="mut">(${t('loja')}: ${esc(E.storefront)})</span>`:esc(t('naoConectado'));
+  $('bLogin').textContent=E.logado?t('entrarDeNovo'):t('entrar');
+  const tf=E.tarefa;
+  $('bAnalisar').disabled=tf.rodando||!E.logado; $('bAplicar').disabled=tf.rodando; $('bRep').disabled=tf.rodando;
+  if(tf.nome){
+    $('tarefaTxt').innerHTML=(tf.rodando?'⏳ ':tf.erro?'<span class="warn">⚠︎</span> ':'<span class="ok">✓</span> ')+esc(tf.nome+': '+(tf.etapa||''))+(tf.total?` — ${tf.feito}/${tf.total}`:'');
+    vis($('prog'),tf.rodando&&tf.total>0); $('prog').max=tf.total||1; $('prog').value=tf.feito;
+    vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
+  } else $('tarefaTxt').textContent=t('nada');
+  if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); }
+  rodavaAntes=tf.rodando;
   if(!A&&E.temAnalise) carregarAnalise();
 }
-setInterval(atualizar,1500); atualizar();
+aplicarIdioma(); api('/api/idioma',{idioma:L}).catch(()=>{}).finally(atualizar); setInterval(atualizar,1500);
 
 function mostrarCfg(){vis($('cfgForm'),true);vis($('cfgOk'),false)}
 async function salvarCfg(){
@@ -162,7 +242,7 @@ function carregarMusicKit(){
   return new Promise((ok,falha)=>{
     if(window.MusicKit) return ok();
     document.addEventListener('musickitloaded',()=>ok(),{once:true});
-    const s=document.createElement('script'); s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js'; s.onerror=()=>falha(new Error('Não consegui carregar o MusicKit JS.'));
+    const s=document.createElement('script'); s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js'; s.onerror=()=>falha(new Error(t('mkErro')));
     document.head.appendChild(s);
   });
 }
@@ -180,54 +260,57 @@ function aba(x){
   if(x==='R'&&!R) carregarRepetidas();
 }
 
-// ── troca pelo catálogo
+// ── troca pelo catálogo / catalog swap
 async function analisar(){
-  if(A&&!confirm('Analisar de novo? (o que já foi trocado fica registrado)')) return;
+  if(A&&A.itens&&!confirm(t('analisarDeNovo'))) return;
   try{await api('/api/analisar',{});await atualizar()}catch(e){erro(e)}
 }
-async function carregarAnalise(){
-  A=await api('/api/analise'); if(!A.itens) return;
-  sel=new Set(A.itens.filter(i=>!i.feito&&i.conf==='alta').map(i=>i.id));
+async function carregarAnalise(manterSelecao){
+  if(!manterSelecao||!A) A=await api('/api/analise');
+  if(!A.itens) return;
+  if(!manterSelecao) sel=new Set(A.itens.filter(i=>!i.feito&&i.conf==='alta').map(i=>i.id));
   const nT=A.itens.filter(i=>i.tipo==='trocar').length, nA=A.itens.length-nT;
   const nf=A.itens.reduce((s,i)=>s+i.faixas.length,0);
-  $('analiseTxt').textContent=`Análise de ${new Date(A.quando).toLocaleString('pt-BR')}: ${nT} álbuns para trocar, ${nA} com edição em Atmos, ${nf} faixas.`+(A.falhas?` ⚠︎ ${A.falhas} álbuns falharam na consulta; clique em Analisar de novo para tentar só esses.`:'');
+  $('analiseTxt').textContent=t('resumo')(new Date(A.quando).toLocaleString(t('locale')),nT,nA,nf)+(A.falhas?t('falhas')(A.falhas):'');
   vis($('filtros'),true); vis($('barraT'),true);
   const na=A.naoAchados||[]; vis($('naoAchados'),na.length>0);
-  $('naoAchados').querySelector('summary').textContent=`${na.length} álbuns sem equivalente no catálogo (ficam como estão)`;
-  $('naoLista').innerHTML=na.slice(0,2000).map(i=>`<li>${esc(i.artista)} — ${esc(i.album)} <span class="chip">${i.nFaixas} faixas</span></li>`).join('');
+  $('naoAchados').querySelector('summary').textContent=t('naoAchados')(na.length);
+  $('naoLista').innerHTML=na.slice(0,2000).map(i=>`<li>${esc(i.artista)} — ${esc(i.album)} <span class="chip">${t('faixasN')(i.nFaixas)}</span></li>`).join('');
   desenhar();
 }
+const semAcento=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function filtrados(){
-  const tipo=$('fTipo').value, conf=$('fConf').value, v=$('fVar').value, b=$('fBusca').value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''), f=$('fFeitos').checked;
+  const tipo=$('fTipo').value, conf=$('fConf').value, v=$('fVar').value, b=semAcento($('fBusca').value), f=$('fFeitos').checked;
   return A.itens.filter(i=>(!tipo||i.tipo===tipo)&&(!conf||i.conf===conf)&&(!v||i.catalogo.variants.includes(v))&&(f||!i.feito)
-    &&(!b||(i.artista+' '+i.album+' '+i.catalogo.nome).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(b)));
+    &&(!b||semAcento(i.artista+' '+i.album+' '+i.catalogo.nome).includes(b)));
 }
 function chipsVar(vs){
   const out=[]; if(vs.includes('dolby-atmos')) out.push(VAR['dolby-atmos']);
   if(vs.includes('hi-res-lossless')) out.push(VAR['hi-res-lossless']); else if(vs.includes('lossless')) out.push(VAR['lossless']);
-  return out.map(([t,c])=>`<span class="chip ${c}">${t}</span>`).join('');
+  return out.map(([x,c])=>`<span class="chip ${c}">${x}</span>`).join('');
 }
+const st=k=>t('st')[k]||k;
 function desenhar(){
   if(!A||!A.itens) return;
   const fs=filtrados();
   $('lista').innerHTML=fs.slice(0,limite).map(i=>{
-    const c=i.catalogo, st=Object.entries(i.status).map(([k,n])=>`<span class="chip">${ST[k]||k} ${n}</span>`).join('');
-    const faixas=i.faixas.map(f=>`<li>${esc(f.nome)} <span class="chip">${ST[f.status]||f.status}</span> → ${esc(f.novoNome)}</li>`).join('');
-    const sem=i.semPar.length?`<li class="warn">Sem par no catálogo (ficam como estão): ${i.semPar.map(esc).join(', ')}</li>`:'';
-    const pend=(i.pendentes||[]).length?`<div class="warn">Pendentes da última tentativa: ${i.pendentes.map(esc).join(', ')}</div>`:'';
+    const c=i.catalogo, chips=Object.entries(i.status).map(([k,n])=>`<span class="chip">${st(k)} ${n}</span>`).join('');
+    const faixas=i.faixas.map(f=>`<li>${esc(f.nome)} <span class="chip">${st(f.status)}</span> → ${esc(f.novoNome)}</li>`).join('');
+    const sem=i.semPar.length?`<li class="warn">${t('semPar')}${i.semPar.map(esc).join(', ')}</li>`:'';
+    const pend=(i.pendentes||[]).length?`<div class="warn">${t('pendentes')}${i.pendentes.map(esc).join(', ')}</div>`:'';
     return `<div class="item ${i.feito?'feito':''}">
       <input type="checkbox" ${sel.has(i.id)?'checked':''} ${i.feito?'disabled':''} onchange="marcar('${i.id}',this.checked)">
       <img loading="lazy" src="${esc(c.arte)}" alt="">
       <div>
         <div class="t">${esc(i.artista)} — ${esc(i.album)}</div>
-        <div>${st}<span class="mut">${i.tipo==='atmos'?'versão atual sem Atmos':''}</span></div>
+        <div>${chips}<span class="mut">${i.tipo==='atmos'?t('semAtmos'):''}</span></div>
         <div style="margin-top:4px">→ <b>${esc(c.nome)}</b> <span class="mut">${esc(c.artista)} · ${esc(c.ano)}</span> ${chipsVar(c.variants)}
-          <span class="chip ${i.conf}">confiança ${i.conf}</span> <span class="mut">${i.faixas.length}/${i.nFaixas} faixas</span>
-          ${c.url?`· <a href="${esc(c.url)}" target="_blank" rel="noopener">abrir</a>`:''} ${i.feito?'<span class="ok">✓ trocado</span>':''}</div>
+          <span class="chip ${i.conf}">${t('confianca')(t('conf_'+i.conf))}</span> <span class="mut">${t('faixasDe')(i.faixas.length,i.nFaixas)}</span>
+          ${c.url?`· <a href="${esc(c.url)}" target="_blank" rel="noopener">${t('abrir')}</a>`:''} ${i.feito?`<span class="ok">${t('trocado')}</span>`:''}</div>
         ${pend}
-        <details><summary>faixas</summary><ul>${faixas}${sem}</ul></details>
+        <details><summary>${t('faixas')}</summary><ul>${faixas}${sem}</ul></details>
       </div></div>`;
-  }).join('')||'<p class="mut">Nada com esses filtros.</p>';
+  }).join('')||`<p class="mut">${t('vazio')}</p>`;
   vis($('mais'),fs.length>limite);
   contarSel();
 }
@@ -235,37 +318,40 @@ function marcar(id,v){v?sel.add(id):sel.delete(id);contarSel()}
 function marcarVisiveis(v){filtrados().forEach(i=>{if(!i.feito)(v?sel.add(i.id):sel.delete(i.id))});desenhar()}
 function contarSel(){
   const its=A.itens.filter(i=>sel.has(i.id)&&!i.feito);
-  $('selTxt').textContent=`${its.length} álbuns marcados · ${its.reduce((s,i)=>s+i.faixas.length,0)} faixas`;
+  $('selTxt').textContent=t('selecao')(its.length,its.reduce((s,i)=>s+i.faixas.length,0));
   $('bAplicar').disabled=!its.length||(E.tarefa&&E.tarefa.rodando);
 }
 async function aplicar(){
   const its=A.itens.filter(i=>sel.has(i.id)&&!i.feito); const nf=its.reduce((s,i)=>s+i.faixas.length,0);
   const proprias=its.reduce((s,i)=>s+i.faixas.filter(f=>['uploaded','matched','unknown'].includes(f.status)).length,0);
-  if(!confirm(`Trocar ${its.length} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas, favoritos e posição nas playlists passam para elas.\n• ${proprias} faixas que são arquivos seus serão baixadas e copiadas para\n  ${E.backup}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`)) return;
+  if(!confirm(t('confirmar')(its.length,nf,proprias,E.backup))) return;
   try{await api('/api/aplicar',{ids:its.map(i=>i.id)});await atualizar()}catch(e){erro(e)}
 }
 
-// ── repetidas
+// ── repetidas / duplicates
 async function carregarRepetidas(){
-  $('repTxt').textContent='Lendo a biblioteca…';
+  $('repTxt').textContent=t('lendo');
   try{R=await api('/api/repetidas')}catch(e){$('repTxt').textContent='';return erro(e)}
   rsel=new Set(R.grupos.map(g=>g.id));
+  desenharRepetidas();
+}
+function desenharRepetidas(){
   const extras=R.grupos.reduce((s,g)=>s+g.remover.length,0);
-  $('repTxt').textContent=`${R.grupos.length} músicas repetidas (${extras} cópias sobrando). Mesmo nome, artista e álbum, com duração até 3 s de diferença.`;
-  const fmt=t=>`<span class="chip">${ST[t.cloudStatus]||t.cloudStatus} · ${t.bitRate||'?'} kbps${t.playedCount?' · '+t.playedCount+'×':''}</span>`;
+  $('repTxt').textContent=t('repResumo')(R.grupos.length,extras);
+  const fmt=x=>`<span class="chip">${st(x.cloudStatus)} · ${x.bitRate||'?'} kbps${x.playedCount?' · '+x.playedCount+'×':''}</span>`;
   $('repLista').innerHTML=R.grupos.map(g=>`<div class="item" style="grid-template-columns:24px 1fr">
-    <input type="checkbox" checked onchange="this.checked?rsel.add('${g.id}'):rsel.delete('${g.id}');contarRep()">
+    <input type="checkbox" ${rsel.has(g.id)?'checked':''} onchange="this.checked?rsel.add('${g.id}'):rsel.delete('${g.id}');contarRep()">
     <div><div class="t">${esc(g.nome)}</div><div class="mut">${esc(g.artista)} — ${esc(g.album)}</div>
-    <div style="margin-top:4px"><span class="ok">fica</span> ${fmt(g.manter)} &nbsp; <span class="warn">sai</span> ${g.remover.map(fmt).join('')}</div></div></div>`).join('');
+    <div style="margin-top:4px"><span class="ok">${t('fica')}</span> ${fmt(g.manter)} &nbsp; <span class="warn">${t('sai')}</span> ${g.remover.map(fmt).join('')}</div></div></div>`).join('');
   vis($('barraR'),R.grupos.length>0); contarRep();
 }
 function contarRep(){
   const gs=R.grupos.filter(g=>rsel.has(g.id));
-  $('repSel').textContent=`${gs.length} marcadas · ${gs.reduce((s,g)=>s+g.remover.length,0)} cópias saem`;
+  $('repSel').textContent=t('repSel')(gs.length,gs.reduce((s,g)=>s+g.remover.length,0));
 }
 async function aplicarRepetidas(){
   const gs=R.grupos.filter(g=>rsel.has(g.id)); const n=gs.reduce((s,g)=>s+g.remover.length,0);
-  if(!confirm(`Remover ${n} cópias repetidas?\n\nFica a de melhor qualidade; reproduções e playlists passam para ela. Cópias que são arquivos seus são baixadas e copiadas para ${E.backup} antes de sair.`)) return;
+  if(!confirm(t('confirmarRep')(n,E.backup))) return;
   try{await api('/api/repetidas',{ids:gs.map(g=>g.id)});await atualizar()}catch(e){erro(e)}
 }
 </script>

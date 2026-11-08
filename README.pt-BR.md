@@ -16,6 +16,9 @@ Em toda troca:
 
 ## Como usar
 
+A interface está em **português** e **inglês**: segue o idioma do navegador e o seletor **PT / EN** no canto superior direito troca na hora.
+
+
 1. Dê dois cliques em `Abrir.command` ou rode `python3 musica.py`. A página abre em http://localhost:8765.
 2. **Chave MusicKit** (uma vez só): em developer.apple.com › Certificates, IDs & Profiles, crie antes um **Media ID** (Identifiers › + › Media IDs, com MusicKit marcado; o identificador começa com `media.`). Depois, em Keys › **+**, marque **Media Services (MusicKit)**, clique em Configure, escolha esse Media ID e baixe o `.p8`. Preencha o Team ID, o Key ID e o caminho do arquivo.
 3. **Entrar no Apple Music** e autorizar.
