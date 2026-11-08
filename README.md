@@ -55,11 +55,11 @@ Keep the `.p8` outside this folder. `*.p8` is git-ignored anyway, and the tool o
 ### 3. Run
 
 ```bash
-git clone https://github.com/caccac/troca-lossless.git
+git clone https://github.com/caccac/Music-LossLess.git
 ```
 
 ```bash
-cd troca-lossless && python3 musica.py
+cd Music-LossLess && python3 musica.py
 ```
 
 Or double-click `Abrir.command`. Your browser opens at <http://localhost:8765>.
