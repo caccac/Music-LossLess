@@ -35,7 +35,7 @@ import urllib.request
 import webbrowser
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1015,12 +1015,27 @@ def concluir_pendentes():
         for t in faixas:
             if t["cloudStatus"] == "subscription" and t["id"] not in olds_todos:
                 indice[(norm(t["name"]), norm(t["album"]))].append(t)
-        prontos, resto = [], []
+        por_nome = defaultdict(list)
+        for lst in indice.values():
+            for t in lst:
+                por_nome[norm(t["name"])].append(t)
+        prontos, resto, usados = [], [], set()
         for e in pend:
             nome, album, dur = e["esperado"]
             c = [t for t in indice.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
+            if not c:
+                # Às vezes a música chega com o nome de outro álbum (o single ou a "Canción de la Semana"
+                # em vez do álbum do catálogo). Aceita pelo nome, artista e duração, se entrou depois do pedido.
+                desde = datetime.fromisoformat(e["criado"]).astimezone(timezone.utc) - timedelta(minutes=2)
+                artistas = [o.get("artist") or "" for o in e["olds"].values()]
+                c = [t for t in por_nome.get(nome, [])
+                     if t["id"] not in usados and abs((t["duration"] or 0) - dur) <= 2
+                     and t["dateAdded"] and datetime.fromisoformat(t["dateAdded"].replace("Z", "+00:00")) >= desde
+                     and any(sim_artista(t["artist"] or "", a) >= 0.85 for a in artistas)]
             if c:
-                prontos.append((e, max(c, key=lambda t: t["dateAdded"] or "")["id"]))
+                n = max(c, key=lambda t: t["dateAdded"] or "")["id"]
+                usados.add(n)
+                prontos.append((e, n))
             else:
                 resto.append(e)
         agora = time.time()
