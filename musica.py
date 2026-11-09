@@ -1002,6 +1002,74 @@ def acionar_atualizacao_nuvem():
             pass
 
 
+def fechar_devolvidas(pend, faixas, olds_todos, espera=20 * 60):
+    """O iCloud às vezes devolve a faixa antiga apagada (mesmo álbum, mesmas reproduções, ID novo, fora das
+    playlists). Enquanto ela existir, a versão do catálogo não entra. Fecha a pendência com ela: volta às
+    playlists, recebe as reproduções que faltarem e sai da lista. Devolve as pendências que continuam."""
+    agora = datetime.now(timezone.utc)
+    candidatas = defaultdict(list)
+    for t in faixas:
+        if t["cloudStatus"] != "subscription" and t["id"] not in olds_todos and t["dateAdded"]:
+            candidatas[norm(t["name"])].append(t)
+    fechadas, resto, usados = [], [], set()
+    for e in pend:
+        criado = datetime.fromisoformat(e["criado"]).astimezone(timezone.utc)
+        olds = list(e["olds"].values())
+        albuns = {norm(o.get("album") or "") for o in olds}
+        artistas = [o.get("artist") or "" for o in olds]
+        c = [t for t in candidatas.get(e["esperado"][0], [])
+             if t["id"] not in usados and agora - criado > timedelta(seconds=espera)
+             and datetime.fromisoformat(t["dateAdded"].replace("Z", "+00:00")) >= criado - timedelta(minutes=2)
+             and norm(t["album"]) in albuns and abs((t["duration"] or 0) - e["esperado"][2]) <= 3
+             and any(sim_artista(t["artist"] or "", a) >= 0.85 for a in artistas)]
+        if c:
+            t = c[0]
+            usados.add(t["id"])
+            fechadas.append((e, t))
+        else:
+            resto.append(e)
+    if not fechadas:
+        return pend
+    ops = []
+    for e, t in fechadas:
+        olds = list(e["olds"].values())
+        op = {"id": t["id"]}
+        soma = sum(o.get("playedCount") or 0 for o in olds)
+        if soma > (t.get("playedCount") or 0):
+            op["playedCount"] = soma
+        datas = [d for d in [t.get("playedDate")] + [o.get("playedDate") for o in olds] if d]
+        if datas and max(datas) != t.get("playedDate"):
+            op["playedDate"] = max(datas)
+        nota = max([o.get("rating") or 0 for o in olds])
+        if nota and not t.get("rating"):
+            op["rating"] = nota
+        if any(o.get("favorited") for o in olds) and not t.get("favorited"):
+            op["favorited"] = True
+        if len(op) > 1:
+            ops.append(op)
+    for lote in em_lotes(ops, 150):
+        osa(JS_METADADOS, [json.dumps(lote)], js=True)
+    insercoes = defaultdict(list)
+    for e, t in fechadas:
+        for pl in e["playlists"]:
+            insercoes[pl["pid"]].append(t["id"])
+    if insercoes:
+        atuais = {x["pid"]: x for x in ler_playlists()}
+        for pid, ids in insercoes.items():
+            if pid in atuais:
+                trocar_na_playlist(atuais[pid], [], [i for i in dict.fromkeys(ids) if i not in atuais[pid]["faixas"]])
+    por_id = {t["id"]: t for t in faixas}
+    for e, _ in fechadas:
+        por_id.update(e["olds"])
+    pares = [(o, t["id"]) for e, t in fechadas for o in e["olds"]]
+    registrar(pares, por_id, {o for o, _ in pares}, "iCloud devolveu a antiga")
+    T.msg(tr(f"   {len(fechadas)} faixas antigas foram devolvidas pelo iCloud e bloqueiam a versão do catálogo: "
+             "ficam como estavam, de volta às playlists",
+             f"   {len(fechadas)} old tracks were brought back by iCloud and block the catalog version: "
+             "they stay as they were, back in their playlists"))
+    return resto
+
+
 def concluir_pendentes():
     """Para cada troca já feita cuja faixa nova chegou ao Mac: passa reproduções/nota/favorito e põe a
     faixa nova na posição da antiga em cada playlist. Devolve quantas ainda faltam."""
@@ -1038,6 +1106,7 @@ def concluir_pendentes():
                 prontos.append((e, n))
             else:
                 resto.append(e)
+        resto = fechar_devolvidas(resto, faixas, olds_todos)
         agora = time.time()
         repedir = [e for e in resto if agora - e.get("ultimoPedido", 0) > 300]
         if repedir and AM.user:
