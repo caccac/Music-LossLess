@@ -809,7 +809,7 @@ def fazer_backup(ids, por_id):
                  f"Downloading {len(faltam)} old tracks for the backup…"))
         nome_pl = nome_playlist_backup()
         osa(AS_PLAYLIST_BACKUP, [nome_pl, ",".join(map(str, faltam))])
-        ultimo_avanco, antes = time.time(), -1
+        ultimo_avanco, antes = time.monotonic(), -1
         limite_sem_avanco = 240
         while True:
             locais = arquivos_locais()
@@ -817,9 +817,9 @@ def fazer_backup(ids, por_id):
             if prontos == len(faltam):
                 break
             if prontos != antes:
-                antes, ultimo_avanco = prontos, time.time()
+                antes, ultimo_avanco = prontos, time.monotonic()
                 T.msg(tr("   baixadas ", "   downloaded ") + f"{prontos}/{len(faltam)}")
-            elif time.time() - ultimo_avanco > limite_sem_avanco:
+            elif time.monotonic() - ultimo_avanco > limite_sem_avanco:
                 T.msg(tr(f"   {len(faltam) - prontos} não baixaram em {limite_sem_avanco // 60} min; "
                          "essas ficam na biblioteca.",
                          f"   {len(faltam) - prontos} did not download in {limite_sem_avanco // 60} min; "
@@ -1028,14 +1028,14 @@ def esperar_novas(esperado, excluir, limite=600, parado=90, repostar=False):
     Espera as faixas do catálogo chegarem ao Mac; desiste depois de `parado` s sem nenhuma nova.
     repostar=True (chaves = ids do catálogo): repete o pedido de adicionar a cada 30 s, porque logo
     depois de apagar a versão antiga a Apple ainda ignora o pedido."""
-    achados, inicio = {}, time.time()
+    achados, inicio = {}, time.monotonic()
     ultimo = ultimo_post = inicio
     while True:
-        if repostar and time.time() - ultimo_post >= 30:
+        if repostar and time.monotonic() - ultimo_post >= 30:
             faltam = [k for k in esperado if k not in achados]
             for ch in em_lotes(faltam, 50):
                 AM.req("POST", "/v1/me/library", {"ids[songs]": ",".join(ch)}, usuario=True)
-            ultimo_post = time.time()
+            ultimo_post = time.monotonic()
         faixas = exportar_biblioteca()
         indice = defaultdict(list)
         for t in faixas:
@@ -1047,7 +1047,7 @@ def esperar_novas(esperado, excluir, limite=600, parado=90, repostar=False):
                 cands = [t for t in indice.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
                 if cands:
                     achados[k] = max(cands, key=lambda t: t["dateAdded"] or "")["id"]
-        agora = time.time()
+        agora = time.monotonic()
         if len(achados) > antes:
             ultimo = agora
         if len(achados) == len(esperado) or agora - inicio > limite or agora - ultimo > parado:
@@ -1234,22 +1234,23 @@ def concluir_pendentes():
 
 def aguardar_pendentes(limite, alvo, sem_progresso):
     """Se houver mais que `limite` pendências, espera o iCloud até baixar para `alvo`. O iCloud às vezes
-    leva mais de uma hora para entregar; só desiste depois de `sem_progresso` segundos sem nenhuma chegar."""
+    leva mais de uma hora para entregar; só desiste depois de `sem_progresso` segundos sem nenhuma chegar.
+    Conta só o tempo com o Mac acordado (time.monotonic): o repouso não parece iCloud travado."""
     n = concluir_pendentes()
     if n <= limite:
         return n
-    ultimo_avanco = ultimo_aviso = time.time()
+    ultimo_avanco = ultimo_aviso = time.monotonic()
     T.msg(tr(f"   {n} músicas aguardando o iCloud; espero baixar antes de continuar…",
              f"   {n} songs waiting for iCloud; waiting for it to catch up before continuing…"))
-    while n > alvo and time.time() - ultimo_avanco < sem_progresso:
+    while n > alvo and time.monotonic() - ultimo_avanco < sem_progresso:
         time.sleep(30)
         acionar_atualizacao_nuvem()
         antes, n = n, concluir_pendentes()
         if n < antes:
-            ultimo_avanco = time.time()
-        if n != antes or time.time() - ultimo_aviso >= 300:
-            ultimo_aviso = time.time()
-            minutos = int((time.time() - ultimo_avanco) // 60)
+            ultimo_avanco = time.monotonic()
+        if n != antes or time.monotonic() - ultimo_aviso >= 300:
+            ultimo_aviso = time.monotonic()
+            minutos = int((time.monotonic() - ultimo_avanco) // 60)
             T.msg(tr(f"   aguardando o iCloud: {n} músicas ainda não chegaram ao Mac"
                      + (f" (nenhuma chegou nos últimos {minutos} min)" if minutos >= 5 else ""),
                      f"   waiting for iCloud: {n} songs have not reached the Mac yet"
@@ -1730,6 +1731,10 @@ def iniciar():
             except Exception as e:  # noqa: BLE001
                 print("pendentes:", e)
     threading.Thread(target=vigia, daemon=True).start()
+    try:  # o Mac não entra em repouso sozinho enquanto o servidor estiver aberto (fechar a tampa ainda põe)
+        subprocess.Popen(["caffeinate", "-i", "-w", str(os.getpid())])
+    except OSError:
+        pass
     srv = ThreadingHTTPServer(("127.0.0.1", PORTA), Pagina)
     url = f"http://localhost:{PORTA}"
     print(tr(f"Music Lossless em {url}  (Ctrl+C para sair)", f"Music Lossless at {url}  (Ctrl+C to quit)"))
