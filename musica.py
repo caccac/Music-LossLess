@@ -880,10 +880,71 @@ def trocar_na_playlist(p, velhas, novas):
     a posição fazia o iCloud mesclar versões e triplicar a playlist."""
     if not velhas and not novas:
         return
+    if p["pid"] in protegidas():  # o iCloud duplicou playlists editadas faixa a faixa; estas ficam intocadas
+        anotar_a_mao(p, novas)
+        return
     r = osa(AS_TROCAR_NA_PLAYLIST, [p["pid"], ",".join(velhas), ",".join(novas)])
     if r != "ok:0":
         T.msg(tr(f"   playlist “{p['nome']}”: {r.split(':')[-1]} faixas não entraram.",
                  f"   playlist “{p['nome']}”: {r.split(':')[-1]} tracks could not be added."))
+
+
+PROTEGIDAS = DADOS / "playlists_protegidas.json"
+A_MAO = DADOS / "adicionar_a_mao.json"
+A_MAO_LOCK = threading.Lock()
+
+
+def protegidas():
+    return set(carregar(PROTEGIDAS, []) or [])
+
+
+def anotar_a_mao(p, novas):
+    """Playlist protegida: a antiga sai junto com a faixa da biblioteca, e a nova fica numa lista para
+    a pessoa adicionar à mão."""
+    if not novas:
+        return
+    with A_MAO_LOCK:
+        lista = carregar(A_MAO, []) or []
+        ja = {(x["pid"], x["id"]) for x in lista}
+        agora = datetime.now().isoformat(timespec="seconds")
+        novos = [{"pid": p["pid"], "playlist": p["nome"], "id": n, "quando": agora}
+                 for n in dict.fromkeys(novas) if (p["pid"], n) not in ja]
+        if not novos:
+            return
+        salvar(A_MAO, lista + novos)
+    T.msg(tr(f"   playlist “{p['nome']}” não foi mexida: {len(novos)} faixas novas ficaram na lista para "
+             "adicionar à mão",
+             f"   playlist “{p['nome']}” left untouched: {len(novos)} new tracks were listed for you to add "
+             "by hand"))
+
+
+def info_protegidas():
+    """Playlists (marcando as protegidas) e as faixas que ainda falta adicionar à mão. Tira da lista as
+    que já estão na playlist ou não existem mais na biblioteca."""
+    pls = ler_playlists()
+    prot = protegidas()
+    conteudo = {p["pid"]: set(p["faixas"]) for p in pls}
+    nomes = {p["pid"]: p["nome"] for p in pls}
+    with A_MAO_LOCK:
+        lista = carregar(A_MAO, []) or []
+        if lista:
+            por_id = {t["id"]: t for t in exportar_biblioteca()}
+            lista = [x for x in lista if x["id"] in por_id and x["pid"] in conteudo
+                     and x["id"] not in conteudo[x["pid"]]]
+            salvar(A_MAO, lista)
+    grupos = {}
+    for x in lista:
+        t = por_id[x["id"]]
+        g = grupos.setdefault(x["pid"], {"pid": x["pid"], "nome": nomes[x["pid"]], "faixas": []})
+        g["faixas"].append({k: t.get(k) for k in ("id", "name", "artist", "album")})
+    return {"playlists": sorted(({"pid": p["pid"], "nome": p["nome"], "n": len(p["faixas"]),
+                                  "protegida": p["pid"] in prot} for p in pls), key=lambda p: norm(p["nome"])),
+            "aMao": sorted(grupos.values(), key=lambda g: norm(g["nome"]))}
+
+
+def salvar_protegidas(pids):
+    validos = {p["pid"] for p in ler_playlists()}
+    salvar(PROTEGIDAS, sorted(set(pids) & validos))
 
 
 def atualizar_playlists(mapa):
@@ -895,8 +956,10 @@ def atualizar_playlists(mapa):
         velhas = [x for x in dict.fromkeys(p["faixas"]) if x in mapa]
         novas = [n for n in dict.fromkeys(mapa[x] for x in velhas) if n]
         trocar_na_playlist(p, velhas, novas)
-    T.msg(tr(f"   {len(afetadas)} playlists atualizadas (cópia de antes em dados/playlists_antes)",
-             f"   {len(afetadas)} playlists updated (previous order saved in dados/playlists_antes)"))
+    n = sum(p["pid"] not in protegidas() for p in afetadas)
+    if n:
+        T.msg(tr(f"   {n} playlists atualizadas (cópia de antes em dados/playlists_antes)",
+                 f"   {n} playlists updated (previous order saved in dados/playlists_antes)"))
 
 
 def apagar(ids):
@@ -1494,7 +1557,8 @@ def apagar_backup():
 
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
-            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
+            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()),
+            "aMao": len(carregar(A_MAO, []) or []), "protegidas": len(protegidas()), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
             "config": {k: v for k, v in (carregar(CONFIG, {}) or {}).items()}}
 
 
@@ -1558,6 +1622,8 @@ class Pagina(BaseHTTPRequestHandler):
                 return self._json({"grupos": achar_repetidas(exportar_biblioteca())})
             if caminho == "/api/sempar":
                 return self._json({"grupos": grupos_sem_par(exportar_biblioteca())})
+            if caminho == "/api/protegidas":
+                return self._json(info_protegidas())
             self._json({"erro": "não encontrado"}, 404)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -1573,6 +1639,8 @@ class Pagina(BaseHTTPRequestHandler):
             if caminho == "/api/idioma":
                 IDIOMA["atual"] = "en" if corpo.get("idioma") == "en" else "pt"
                 salvar(PREFS, {"idioma": IDIOMA["atual"]})
+            elif caminho == "/api/protegidas":
+                salvar_protegidas(corpo.get("pids") or [])
             elif caminho == "/api/config":
                 configurar(corpo)
             elif caminho == "/api/login":

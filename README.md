@@ -16,7 +16,7 @@ Every replacement, whether from the catalog or from a duplicate:
 
 1. **Backs up your own files first.** Uploaded and matched tracks are downloaded and copied to `~/Music/Old versions backup/Artist/Album/` (`Backup versões antigas` in Portuguese; whichever folder already exists is kept). If a download fails, that track is not deleted.
 2. **Moves your data to the track that stays:** play count (added up), last played date, star rating, favorite and dislike.
-3. **Keeps your playlists.** In every regular playlist the new track is added at the end and the old one removed. Rebuilding playlists to keep exact positions made iCloud merge versions and duplicate whole playlists, so the tool makes the smallest possible change. The previous order is saved to `dados/playlists_antes/` first.
+3. **Keeps your playlists.** In every regular playlist the new track is added at the end and the old one removed. Rebuilding playlists to keep exact positions made iCloud merge versions and duplicate whole playlists, so the tool makes the smallest possible change. The previous order is saved to `dados/playlists_antes/` first. Playlists you mark under **Playlists the script leaves alone** are never edited: the old track still disappears with the library, and the new one goes to an on-page list for you to add by hand. Use it for a playlist that iCloud keeps duplicating.
 4. Deletes the old track from the library, and from iCloud.
 5. Records everything in `dados/registro.jsonl`.
 
@@ -108,6 +108,8 @@ dados/             created at runtime, git-ignored
   analise.json         last analysis
   preferencias.json    interface language
   playlists_antes/     playlist order saved before each change
+  playlists_protegidas.json  playlists the tool leaves alone
+  adicionar_a_mao.json        new tracks to add to them by hand
   registro.jsonl       one line per swapped or deleted track
 ```
 

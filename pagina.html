@@ -90,6 +90,17 @@ a{color:var(--ac)}
   </section>
 
   <section class="card">
+    <h2 data-i="plTitulo"></h2>
+    <p class="mut" data-i="plAjuda" style="margin:0 0 10px"></p>
+    <div class="linha"><button class="sec" onclick="carregarProtegidas()" data-i="plVer"></button><span id="plTxt" class="mut"></span></div>
+    <div id="plCaixa" class="esc" style="margin-top:12px">
+      <input type="text" id="plBusca" data-i-ph="plBusca" oninput="desenharProtegidas()">
+      <div id="plLista" style="max-height:260px;overflow:auto;margin-top:8px;border:1px solid var(--bd);border-radius:8px;padding:6px 10px"></div>
+      <div id="plMao" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <section class="card">
     <div class="linha tabs" style="margin-bottom:12px">
       <button id="tabT" class="on" onclick="aba('T')" data-i="abaTrocar"></button>
       <button id="tabR" onclick="aba('R')" data-i="abaRepetidas"></button>
@@ -165,6 +176,10 @@ pt:{
   cfgCaminho:'Caminho do .p8', salvar:'Salvar',
   naoConectado:'Ainda não conectado.', conectado:'✓ Conectado', loja:'loja', entrar:'Entrar no Apple Music', entrarDeNovo:'Entrar de novo',
   andamento:'Andamento', nada:'Nada em andamento.',
+  plTitulo:'Playlists que o script não mexe', plVer:'Ver playlists', plBusca:'Buscar playlist',
+  plAjuda:'Nas playlists marcadas aqui, a faixa antiga sai junto com a biblioteca, mas a nova não é adicionada: ela vai para uma lista para você pôr à mão (no Mac ou no iPhone). Use para playlists que o iCloud duplicou depois das edições.',
+  plResumo:(p,m)=>`${p} playlists protegidas`+(m?` · ${m} faixas para adicionar à mão`:''),
+  plMaoTit:'Faixas para adicionar à mão', plMaoAjuda:'Some da lista sozinha quando a faixa estiver na playlist.', plMaoVazio:'Nenhuma faixa para adicionar à mão.',
   bkTitulo:'Backup das versões antigas', bkVazio:'Nenhum backup no momento.', bkBotao:'Mover backup para o Lixo',
   bkInfo:(n,tam,p)=>`${n} arquivos (${tam}) em ${p}. São as suas faixas que foram trocadas ou removidas como repetidas.`,
   bkRodando:'Disponível quando a tarefa em andamento terminar.',
@@ -190,7 +205,7 @@ pt:{
   semAtmos:'versão atual sem Atmos', faixasDe:(a,b)=>`${a}/${b} faixas`, abrir:'abrir', trocado:'✓ trocado', faixas:'faixas',
   semPar:'Sem par no catálogo (ficam como estão): ', pendentes:'Pendentes da última tentativa: ', vazio:'Nada com esses filtros.',
   selecao:(a,f)=>`${a} álbuns marcados · ${f} faixas`,
-  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas e favoritos passam para elas. Nas playlists, a nova entra no fim e a antiga sai.\n• Algumas chegam do iCloud minutos depois; a troca se completa sozinha.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
+  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas e favoritos passam para elas. Nas playlists, a nova entra no fim e a antiga sai (nas protegidas, a nova vai para a lista de adicionar à mão).\n• Algumas chegam do iCloud minutos depois; a troca se completa sozinha.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
   procurarRep:'Procurar repetidas', lendo:'Lendo a biblioteca…', removerRep:'Remover repetidas marcadas',
   repResumo:(g,e)=>`${g} músicas repetidas (${e} cópias sobrando). Mesmo nome, artista e álbum, com duração até 3 s de diferença.`,
   fica:'fica', sai:'sai', repSel:(g,c)=>`${g} marcadas · ${c} cópias saem`,
@@ -205,6 +220,10 @@ en:{
   cfgCaminho:'Path to the .p8', salvar:'Save',
   naoConectado:'Not connected yet.', conectado:'✓ Connected', loja:'storefront', entrar:'Sign in to Apple Music', entrarDeNovo:'Sign in again',
   andamento:'Progress', nada:'Nothing running.',
+  plTitulo:'Playlists the script leaves alone', plVer:'Show playlists', plBusca:'Search playlist',
+  plAjuda:'In the playlists ticked here, the old track goes away with the library, but the new one is not added: it goes into a list for you to add by hand (on the Mac or the iPhone). Use it for playlists that iCloud duplicated after edits.',
+  plResumo:(p,m)=>`${p} protected playlists`+(m?` · ${m} tracks to add by hand`:''),
+  plMaoTit:'Tracks to add by hand', plMaoAjuda:'They leave the list by themselves once the track is in the playlist.', plMaoVazio:'No tracks to add by hand.',
   bkTitulo:'Old versions backup', bkVazio:'No backup at the moment.', bkBotao:'Move backup to Trash',
   bkInfo:(n,tam,p)=>`${n} files (${tam}) in ${p}. These are your own tracks that were swapped or removed as duplicates.`,
   bkRodando:'Available when the running task finishes.',
@@ -230,7 +249,7 @@ en:{
   semAtmos:'current version has no Atmos', faixasDe:(a,b)=>`${a}/${b} tracks`, abrir:'open', trocado:'✓ swapped', faixas:'tracks',
   semPar:'No catalog match (left as they are): ', pendentes:'Pending from the last attempt: ', vazio:'Nothing matches these filters.',
   selecao:(a,f)=>`${a} albums selected · ${f} tracks`,
-  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings and favorites move to them. In playlists, the new one is added at the end and the old one removed.\n• Some arrive from iCloud minutes later; the swap completes itself.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
+  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings and favorites move to them. In playlists, the new one is added at the end and the old one removed (in protected ones, the new one goes to the add-by-hand list).\n• Some arrive from iCloud minutes later; the swap completes itself.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
   procurarRep:'Find duplicates', lendo:'Reading the library…', removerRep:'Remove selected duplicates',
   repResumo:(g,e)=>`${g} duplicated songs (${e} extra copies). Same title, artist and album, with lengths within 3 s.`,
   fica:'keep', sai:'remove', repSel:(g,c)=>`${g} selected · ${c} copies removed`,
@@ -263,7 +282,7 @@ async function mudarIdioma(l){
   L=l; try{localStorage.setItem('idioma',l)}catch(e){}
   aplicarIdioma();
   try{await api('/api/idioma',{idioma:l})}catch(e){}
-  await atualizar(); if(A) carregarAnalise(true); if(R) desenharRepetidas(); desenharBackup();
+  await atualizar(); if(A) carregarAnalise(true); if(R) desenharRepetidas(); if(PL) desenharProtegidas(); desenharBackup();
 }
 
 async function atualizar(){
@@ -285,10 +304,35 @@ async function atualizar(){
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
   if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); if(S) carregarSemPar(); carregarBackup(); }
   desenharBackup();
+  if(!PL) $('plTxt').textContent=t('plResumo')(E.protegidas||0,E.aMao||0);
+  if(rodavaAntes&&!tf.rodando&&PL) carregarProtegidas();
   rodavaAntes=tf.rodando;
   if(!A&&E.temAnalise) carregarAnalise();
 }
 aplicarIdioma(); api('/api/idioma',{idioma:L}).catch(()=>{}).finally(atualizar); setInterval(atualizar,1500); carregarBackup();
+
+// ── playlists protegidas / protected playlists
+let PL=null;
+async function carregarProtegidas(){
+  $('plTxt').textContent=t('lendo');
+  try{PL=await api('/api/protegidas')}catch(e){$('plTxt').textContent='';return erro(e)}
+  PL.playlists.sort((x,y)=>y.protegida-x.protegida); vis($('plCaixa'),true); desenharProtegidas();
+}
+function desenharProtegidas(){
+  if(!PL) return;
+  const b=semAcento($('plBusca').value);
+  const ps=PL.playlists.filter(p=>!b||semAcento(p.nome).includes(b));
+  $('plLista').innerHTML=ps.map(p=>`<label class="linha" style="padding:3px 0"><input type="checkbox" ${p.protegida?'checked':''} onchange="protegerPl('${esc(p.pid)}',this.checked)"> ${esc(p.nome)} <span class="mut">${t('faixasN')(p.n)}</span></label>`).join('')||`<p class="mut">${t('vazio')}</p>`;
+  const nMao=PL.aMao.reduce((n,g)=>n+g.faixas.length,0);
+  $('plTxt').textContent=t('plResumo')(PL.playlists.filter(p=>p.protegida).length,nMao);
+  $('plMao').innerHTML=PL.aMao.length?`<h2 style="font-size:15px">${t('plMaoTit')}</h2><p class="mut" style="margin:0 0 6px">${t('plMaoAjuda')}</p>`
+    +PL.aMao.map(g=>`<details open><summary><b>${esc(g.nome)}</b> <span class="mut">${t('faixasN')(g.faixas.length)}</span></summary><ul>${g.faixas.map(f=>`<li>${esc(f.name)} <span class="mut">${esc(f.artist)} — ${esc(f.album)}</span></li>`).join('')}</ul></details>`).join('')
+    :`<p class="mut">${t('plMaoVazio')}</p>`;
+}
+async function protegerPl(pid,v){
+  const p=PL.playlists.find(x=>x.pid===pid); p.protegida=v;
+  try{await api('/api/protegidas',{pids:PL.playlists.filter(x=>x.protegida).map(x=>x.pid)}); desenharProtegidas()}catch(e){p.protegida=!v;erro(e);desenharProtegidas()}
+}
 
 // ── backup
 let BK=null;
