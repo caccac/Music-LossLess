@@ -1257,7 +1257,33 @@ def aguardar_pendentes(limite, alvo, sem_progresso):
     return n
 
 
+# Quantas músicas podem ficar aguardando o iCloud. Sem o limite, um lote com caixas grandes (e o backup
+# desligado, que tirava a pausa dos downloads) apagava centenas de faixas de uma vez, e o iCloud, que entrega
+# cada vez mais devagar quando a fila cresce, deixava a troca parada por muito tempo.
+LIMITE_PEND, ALVO_PEND, PEDACO_PEND = 60, 30, 30
+
+
+def esperar_icloud():
+    """Antes de criar mais pendências: espera a fila do iCloud baixar; para a tarefa se ele travar 3 horas."""
+    if aguardar_pendentes(limite=LIMITE_PEND, alvo=ALVO_PEND, sem_progresso=3 * 3600) > LIMITE_PEND:
+        raise RuntimeError(tr("O iCloud não trouxe nenhuma música nova em 3 horas. Parei para não acumular; "
+                              "o que já foi trocado se completa sozinho quando elas chegarem. Clique em "
+                              "Trocar de novo mais tarde para continuar de onde parou.",
+                              "iCloud delivered no new songs in 3 hours. Stopped so they don't pile up; "
+                              "what was already swapped completes itself when they arrive. Click Swap "
+                              "again later to continue where it stopped."))
+
+
 def trocar_bloqueadas(bloq, faixas, motivo):
+    """Faz em pedaços de até PEDACO_PEND músicas, esperando a fila do iCloud entre um e outro."""
+    apagadas = set()
+    for pedaco in em_lotes(bloq, PEDACO_PEND):
+        esperar_icloud()
+        apagadas |= _trocar_bloqueadas(pedaco, faixas, motivo)
+    return apagadas
+
+
+def _trocar_bloqueadas(bloq, faixas, motivo):
     """A antiga é Enviada/Correspondida (ou há outra assim com o mesmo nome e álbum): enquanto ela existir,
     adicionar a versão do catálogo não cria faixa nova. Ordem: backup → anota tudo em pendentes.json →
     apaga → pede a nova. Quando a nova chega ao Mac, concluir_pendentes passa os dados e as playlists."""
@@ -1321,13 +1347,7 @@ def job_aplicar(ids):
         raise RuntimeError(tr("Nada selecionado (ou já aplicado).", "Nothing selected (or already applied)."))
     T.passo(tr(f"Trocando {len(escolhidos)} álbuns…", f"Swapping {len(escolhidos)} albums…"), len(escolhidos))
     for lote in em_lotes(escolhidos, 25):
-        if aguardar_pendentes(limite=150, alvo=60, sem_progresso=3 * 3600) > 150:
-            raise RuntimeError(tr("O iCloud não trouxe nenhuma música nova em 3 horas. Parei para não acumular; "
-                                  "o que já foi trocado se completa sozinho quando elas chegarem. Clique em "
-                                  "Trocar de novo mais tarde para continuar de onde parou.",
-                                  "iCloud delivered no new songs in 3 hours. Stopped so they don't pile up; "
-                                  "what was already swapped completes itself when they arrive. Click Swap "
-                                  "again later to continue where it stopped."))
+        esperar_icloud()
         aplicar_lote(lote)
         T.feito += len(lote)
         estado = {i["id"]: i for i in lote}
