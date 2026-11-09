@@ -9,7 +9,7 @@ Ferramenta local para a biblioteca do app Música no Mac.
 - **Repetidas**: mesma música, mesmo artista, mesmo álbum, duração até 3 s de diferença. Fica a de melhor qualidade (arquivo sem perda no Mac › Apple Music › Comprado › Correspondido › Enviado; depois maior taxa de bits).
 
 Em toda troca:
-1. As antigas que são arquivos seus (enviadas/correspondidas) são **baixadas e copiadas** para `~/Music/Backup versões antigas/Artista/Álbum/`. Se o download falhar, a faixa não é apagada.
+1. As antigas que são arquivos seus (enviadas/correspondidas) são **baixadas e copiadas** para `~/Music/Backup versões antigas/Artista/Álbum/`. Se o download falhar, a faixa não é apagada. Dá para desligar isso na caixa de seleção do cartão de backup: aí os arquivos seus saem da biblioteca e do iCloud sem cópia, e as confirmações avisam.
 2. Reproduções, última reprodução, nota, favorito e "não gostei" passam para a faixa que fica.
 3. Nas playlists comuns, a nova entra no fim e a antiga sai. Refazer a playlist para manter a posição exata fazia o iCloud mesclar versões e duplicar a playlist inteira; por isso a alteração é a menor possível. Antes disso é salva uma cópia da ordem em `dados/playlists_antes/`. As playlists marcadas em **Playlists que o script não mexe** nunca são editadas: a antiga sai junto com a biblioteca, e a nova vai para uma lista na página para você adicionar à mão. Use para uma playlist que o iCloud insiste em duplicar.
 4. A antiga é apagada da biblioteca (e do iCloud).

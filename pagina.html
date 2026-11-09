@@ -85,6 +85,8 @@ a{color:var(--ac)}
 
   <section class="card">
     <h2 data-i="bkTitulo"></h2>
+    <label class="linha" style="margin:0 0 8px"><input type="checkbox" id="bkLigado" onchange="mudarBackup(this.checked)"> <span data-i="bkOpcao"></span></label>
+    <p class="warn esc" id="bkDesligado" data-i="bkDesligado" style="margin:0 0 8px"></p>
     <p class="mut" id="bkInfo" style="margin:0 0 10px"></p>
     <div class="linha"><button class="sec" id="bApagarBk" onclick="apagarBackup()" data-i="bkBotao"></button><span id="bkAviso" class="mut"></span></div>
   </section>
@@ -181,6 +183,9 @@ pt:{
   plResumo:(p,m)=>`${p} playlists protegidas`+(m?` · ${m} faixas para adicionar à mão`:''),
   plMaoTit:'Faixas para adicionar à mão', plMaoAjuda:'Some da lista sozinha quando a faixa estiver na playlist.', plMaoVazio:'Nenhuma faixa para adicionar à mão.',
   bkTitulo:'Backup das versões antigas', bkVazio:'Nenhum backup no momento.', bkBotao:'Mover backup para o Lixo',
+  bkOpcao:'Fazer backup das faixas que são arquivos seus antes de apagá-las',
+  bkDesligado:'Backup desligado: as faixas enviadas, correspondidas ou compradas que forem trocadas ou removidas saem da biblioteca e do iCloud sem nenhuma cópia.',
+  bkDesligarConfirma:'Desligar o backup?\n\nDaqui em diante, as faixas que são arquivos seus (enviadas, correspondidas, compradas) saem da biblioteca e do iCloud sem cópia. Nas trocas, fica a versão do catálogo; em Sem equivalente, a música some de vez.',
   bkInfo:(n,tam,p)=>`${n} arquivos (${tam}) em ${p}. São as suas faixas que foram trocadas ou removidas como repetidas.`,
   bkRodando:'Disponível quando a tarefa em andamento terminar.',
   bkPendentes:n=>`Disponível quando as ${n} músicas pendentes chegarem do iCloud.`,
@@ -197,7 +202,7 @@ pt:{
   spQualquer:'Qualquer estado', spUploaded:'Com faixas enviadas', spMatched:'Com faixas correspondidas', spIndisp:'Com faixas indisponíveis',
   spResumo:(g,f)=>`${g} álbuns sem equivalente · ${f} faixas`, spSel:(g,f)=>`${g} álbuns marcados · ${f} faixas`,
   spApagar:'Apagar marcados', semNome:'(sem nome)', spSemAnalise:'Analise a biblioteca primeiro (aba Trocar).', reproducoes:n=>`${n}×`,
-  spConfirma:(g,f,p,b,pl)=>`Apagar ${g} álbuns (${f} faixas) da biblioteca e do iCloud?\n\n• Não existe versão deles no catálogo: depois de apagados, só ficam no backup.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair. Se alguma não baixar, ela fica.\n• Elas também saem das playlists.${pl?`\n• ${pl} reproduções registradas se perdem (ficam anotadas em dados/registro.jsonl).`:''}`, faixasN:n=>`${n} faixas`,
+  spConfirma:(g,f,p,b,pl)=>`Apagar ${g} álbuns (${f} faixas) da biblioteca e do iCloud?\n\n${b?`• Não existe versão deles no catálogo: depois de apagados, só ficam no backup.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair. Se alguma não baixar, ela fica.`:`• Não existe versão deles no catálogo e o backup está desligado: ${p} faixas que são arquivos seus somem de vez, sem cópia.`}\n• Elas também saem das playlists.${pl?`\n• ${pl} reproduções registradas se perdem (ficam anotadas em dados/registro.jsonl).`:''}`, faixasN:n=>`${n} faixas`,
   fTudo:'Tudo', fTrocar:'Enviadas / correspondidas / indisponíveis', fAtmos:'Apple Music → edição com Atmos',
   fConf:'Qualquer confiança', conf_alta:'alta', 'conf_média':'média', conf_baixa:'baixa', confianca:c=>`confiança ${c}`,
   fFormato:'Qualquer formato', fComAtmos:'Com Dolby Atmos', fBusca:'Buscar artista ou álbum', fFeitos:'mostrar já trocados',
@@ -205,11 +210,11 @@ pt:{
   semAtmos:'versão atual sem Atmos', faixasDe:(a,b)=>`${a}/${b} faixas`, abrir:'abrir', trocado:'✓ trocado', faixas:'faixas',
   semPar:'Sem par no catálogo (ficam como estão): ', pendentes:'Pendentes da última tentativa: ', vazio:'Nada com esses filtros.',
   selecao:(a,f)=>`${a} álbuns marcados · ${f} faixas`,
-  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas e favoritos passam para elas. Nas playlists, a nova entra no fim e a antiga sai (nas protegidas, a nova vai para a lista de adicionar à mão).\n• Algumas chegam do iCloud minutos depois; a troca se completa sozinha.\n• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
+  confirmar:(a,nf,p,b)=>`Trocar ${a} álbuns (${nf} faixas)?\n\n• As versões do catálogo entram na biblioteca.\n• Reproduções, notas e favoritos passam para elas. Nas playlists, a nova entra no fim e a antiga sai (nas protegidas, a nova vai para a lista de adicionar à mão).\n• Algumas chegam do iCloud minutos depois; a troca se completa sozinha.\n${b?`• ${p} faixas que são arquivos seus serão baixadas e copiadas para\n  ${b}\n  antes de sair da biblioteca.`:`• Backup desligado: ${p} faixas que são arquivos seus saem sem cópia.`}\n• Depois disso as antigas são apagadas da biblioteca (e do iCloud).`,
   procurarRep:'Procurar repetidas', lendo:'Lendo a biblioteca…', removerRep:'Remover repetidas marcadas',
   repResumo:(g,e)=>`${g} músicas repetidas (${e} cópias sobrando). Mesmo nome, artista e álbum, com duração até 3 s de diferença.`,
   fica:'fica', sai:'sai', repSel:(g,c)=>`${g} marcadas · ${c} cópias saem`,
-  confirmarRep:(n,b)=>`Remover ${n} cópias repetidas?\n\nFica a de melhor qualidade; reproduções e playlists passam para ela. Cópias que são arquivos seus são baixadas e copiadas para ${b} antes de sair.`,
+  confirmarRep:(n,b)=>`Remover ${n} cópias repetidas?\n\nFica a de melhor qualidade; reproduções e playlists passam para ela. ${b?`Cópias que são arquivos seus são baixadas e copiadas para ${b} antes de sair.`:'Backup desligado: cópias que são arquivos seus saem sem cópia.'}`,
   st:{uploaded:'Enviado',matched:'Correspondido','no longer available':'Indisponível',subscription:'Apple Music',purchased:'Comprado',unknown:'Desconhecido'},
   mkErro:'Não consegui carregar o MusicKit JS.', locale:'pt-BR'
 },
@@ -225,6 +230,9 @@ en:{
   plResumo:(p,m)=>`${p} protected playlists`+(m?` · ${m} tracks to add by hand`:''),
   plMaoTit:'Tracks to add by hand', plMaoAjuda:'They leave the list by themselves once the track is in the playlist.', plMaoVazio:'No tracks to add by hand.',
   bkTitulo:'Old versions backup', bkVazio:'No backup at the moment.', bkBotao:'Move backup to Trash',
+  bkOpcao:'Back up tracks that are your own files before deleting them',
+  bkDesligado:'Backup turned off: uploaded, matched or purchased tracks that are swapped or removed leave the library and iCloud with no copy.',
+  bkDesligarConfirma:'Turn off the backup?\n\nFrom now on, tracks that are your own files (uploaded, matched, purchased) leave the library and iCloud with no copy. In swaps, the catalog version stays; in No catalog match, the song is gone for good.',
   bkInfo:(n,tam,p)=>`${n} files (${tam}) in ${p}. These are your own tracks that were swapped or removed as duplicates.`,
   bkRodando:'Available when the running task finishes.',
   bkPendentes:n=>`Available once the ${n} pending songs arrive from iCloud.`,
@@ -241,7 +249,7 @@ en:{
   spQualquer:'Any status', spUploaded:'With uploaded tracks', spMatched:'With matched tracks', spIndisp:'With unavailable tracks',
   spResumo:(g,f)=>`${g} albums with no match · ${f} tracks`, spSel:(g,f)=>`${g} albums selected · ${f} tracks`,
   spApagar:'Delete selected', semNome:'(untitled)', spSemAnalise:'Analyze the library first (Swap tab).', reproducoes:n=>`${n}×`,
-  spConfirma:(g,f,p,b,pl)=>`Delete ${g} albums (${f} tracks) from the library and from iCloud?\n\n• There is no catalog version of them: once deleted, they only exist in the backup.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before they go. Any that fail to download stay.\n• They are also removed from playlists.${pl?`\n• ${pl} recorded plays are lost (they stay noted in dados/registro.jsonl).`:''}`, faixasN:n=>`${n} tracks`,
+  spConfirma:(g,f,p,b,pl)=>`Delete ${g} albums (${f} tracks) from the library and from iCloud?\n\n${b?`• There is no catalog version of them: once deleted, they only exist in the backup.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before they go. Any that fail to download stay.`:`• There is no catalog version of them and the backup is turned off: ${p} tracks that are your own files are gone for good, with no copy.`}\n• They are also removed from playlists.${pl?`\n• ${pl} recorded plays are lost (they stay noted in dados/registro.jsonl).`:''}`, faixasN:n=>`${n} tracks`,
   fTudo:'Everything', fTrocar:'Uploaded / matched / unavailable', fAtmos:'Apple Music → Dolby Atmos edition',
   fConf:'Any confidence', conf_alta:'high', 'conf_média':'medium', conf_baixa:'low', confianca:c=>`${c} confidence`,
   fFormato:'Any format', fComAtmos:'With Dolby Atmos', fBusca:'Search artist or album', fFeitos:'show already swapped',
@@ -249,11 +257,11 @@ en:{
   semAtmos:'current version has no Atmos', faixasDe:(a,b)=>`${a}/${b} tracks`, abrir:'open', trocado:'✓ swapped', faixas:'tracks',
   semPar:'No catalog match (left as they are): ', pendentes:'Pending from the last attempt: ', vazio:'Nothing matches these filters.',
   selecao:(a,f)=>`${a} albums selected · ${f} tracks`,
-  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings and favorites move to them. In playlists, the new one is added at the end and the old one removed (in protected ones, the new one goes to the add-by-hand list).\n• Some arrive from iCloud minutes later; the swap completes itself.\n• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.\n• Then the old ones are deleted from the library (and from iCloud).`,
+  confirmar:(a,nf,p,b)=>`Swap ${a} albums (${nf} tracks)?\n\n• The catalog versions are added to your library.\n• Play counts, ratings and favorites move to them. In playlists, the new one is added at the end and the old one removed (in protected ones, the new one goes to the add-by-hand list).\n• Some arrive from iCloud minutes later; the swap completes itself.\n${b?`• ${p} tracks that are your own files will be downloaded and copied to\n  ${b}\n  before leaving the library.`:`• Backup turned off: ${p} tracks that are your own files go without a copy.`}\n• Then the old ones are deleted from the library (and from iCloud).`,
   procurarRep:'Find duplicates', lendo:'Reading the library…', removerRep:'Remove selected duplicates',
   repResumo:(g,e)=>`${g} duplicated songs (${e} extra copies). Same title, artist and album, with lengths within 3 s.`,
   fica:'keep', sai:'remove', repSel:(g,c)=>`${g} selected · ${c} copies removed`,
-  confirmarRep:(n,b)=>`Remove ${n} duplicate copies?\n\nThe best-quality copy stays; play counts and playlists move to it. Copies that are your own files are downloaded and copied to ${b} before they go.`,
+  confirmarRep:(n,b)=>`Remove ${n} duplicate copies?\n\nThe best-quality copy stays; play counts and playlists move to it. ${b?`Copies that are your own files are downloaded and copied to ${b} before they go.`:'Backup turned off: copies that are your own files go without a copy.'}`,
   st:{uploaded:'Uploaded',matched:'Matched','no longer available':'No Longer Available',subscription:'Apple Music',purchased:'Purchased',unknown:'Unknown'},
   mkErro:'Could not load MusicKit JS.', locale:'en-US'
 }};
@@ -303,6 +311,7 @@ async function atualizar(){
   } else $('tarefaTxt').textContent=t('nada');
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
   if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); if(S) carregarSemPar(); carregarBackup(); }
+  $('bkLigado').checked=E.comBackup!==false; $('bkLigado').disabled=tf.rodando; vis($('bkDesligado'),E.comBackup===false);
   desenharBackup();
   if(!PL) $('plTxt').textContent=t('plResumo')(E.protegidas||0,E.aMao||0);
   if(rodavaAntes&&!tf.rodando&&PL) carregarProtegidas();
@@ -343,6 +352,10 @@ function desenharBackup(){
   $('bkInfo').textContent=BK.arquivos?t('bkInfo')(BK.arquivos,fmtTam(BK.bytes),BK.pastas.join(', ')):t('bkVazio');
   const bloqueio=E.tarefa&&E.tarefa.rodando?t('bkRodando'):(E.pendentes?t('bkPendentes')(E.pendentes):'');
   $('bApagarBk').disabled=!BK.arquivos||!!bloqueio; $('bkAviso').textContent=BK.arquivos?bloqueio:'';
+}
+async function mudarBackup(v){
+  if(!v&&!confirm(t('bkDesligarConfirma'))){$('bkLigado').checked=true;return}
+  try{await api('/api/backup/opcao',{ligado:v});await atualizar()}catch(e){$('bkLigado').checked=!v;erro(e)}
 }
 async function apagarBackup(){
   if(!confirm(t('bkConfirma')(BK.arquivos,fmtTam(BK.bytes)))) return;
@@ -439,7 +452,7 @@ function contarSel(){
 async function aplicar(){
   const its=A.itens.filter(i=>sel.has(i.id)&&!i.feito); const nf=its.reduce((s,i)=>s+i.faixas.length,0);
   const proprias=its.reduce((s,i)=>s+i.faixas.filter(f=>['uploaded','matched','unknown'].includes(f.status)).length,0);
-  if(!confirm(t('confirmar')(its.length,nf,proprias,E.backup))) return;
+  if(!confirm(t('confirmar')(its.length,nf,proprias,E.comBackup?E.backup:null))) return;
   try{await api('/api/aplicar',{ids:its.map(i=>i.id)});await atualizar()}catch(e){erro(e)}
 }
 
@@ -466,7 +479,7 @@ function contarRep(){
 }
 async function aplicarRepetidas(){
   const gs=R.grupos.filter(g=>rsel.has(g.id)); const n=gs.reduce((s,g)=>s+g.remover.length,0);
-  if(!confirm(t('confirmarRep')(n,E.backup))) return;
+  if(!confirm(t('confirmarRep')(n,E.comBackup?E.backup:null))) return;
   try{await api('/api/repetidas',{ids:gs.map(g=>g.id)});await atualizar()}catch(e){erro(e)}
 }
 
@@ -508,7 +521,7 @@ async function apagarSemPar(){
   const gs=S.grupos.filter(g=>ssel.has(g.id)); const fx=gs.flatMap(g=>g.faixas);
   const proprias=fx.filter(f=>f.arquivo||['uploaded','matched','purchased','unknown'].includes(f.status)).length;
   const plays=fx.reduce((n,f)=>n+f.reproducoes,0);
-  if(!confirm(t('spConfirma')(gs.length,fx.length,proprias,E.backup,plays))) return;
+  if(!confirm(t('spConfirma')(gs.length,fx.length,proprias,E.comBackup?E.backup:null,plays))) return;
   try{await api('/api/sempar',{ids:gs.map(g=>g.id)});ssel.clear();await atualizar()}catch(e){erro(e)}
 }
 </script>

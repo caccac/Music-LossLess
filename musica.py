@@ -52,6 +52,20 @@ PREFS = DADOS / "preferencias.json"
 IDIOMA = {"atual": "pt"}  # "pt" ou "en"; a página escolhe
 
 
+def prefs():
+    return carregar(PREFS, {}) or {}
+
+
+def salvar_pref(**kw):
+    p = prefs()
+    p.update(kw)
+    salvar(PREFS, p)
+
+
+def com_backup():
+    return prefs().get("backup", True) is not False
+
+
 def tr(pt, en):
     return en if IDIOMA["atual"] == "en" else pt
 
@@ -784,6 +798,10 @@ def fazer_backup(ids, por_id):
     """Baixa e copia as faixas para a pasta de backup. Devolve os ids que estão salvos com segurança."""
     if not ids:
         return set()
+    if not com_backup():
+        T.msg(tr(f"   backup desligado: {len(ids)} faixas que são arquivos seus saem sem cópia",
+                 f"   backup turned off: {len(ids)} tracks that are your own files go without a copy"))
+        return set(ids)
     locais = arquivos_locais()
     faltam = [i for i in ids if i not in locais]
     if faltam:
@@ -1558,7 +1576,7 @@ def apagar_backup():
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
             "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()),
-            "aMao": len(carregar(A_MAO, []) or []), "protegidas": len(protegidas()), "backup": str(pasta_backup()), "idioma": IDIOMA["atual"],
+            "aMao": len(carregar(A_MAO, []) or []), "protegidas": len(protegidas()), "backup": str(pasta_backup()), "comBackup": com_backup(), "idioma": IDIOMA["atual"],
             "config": {k: v for k, v in (carregar(CONFIG, {}) or {}).items()}}
 
 
@@ -1638,7 +1656,12 @@ class Pagina(BaseHTTPRequestHandler):
             corpo = json.loads(self.rfile.read(n) or b"{}")
             if caminho == "/api/idioma":
                 IDIOMA["atual"] = "en" if corpo.get("idioma") == "en" else "pt"
-                salvar(PREFS, {"idioma": IDIOMA["atual"]})
+                salvar_pref(idioma=IDIOMA["atual"])
+            elif caminho == "/api/backup/opcao":
+                if T.rodando:
+                    raise RuntimeError(tr("Espere a tarefa em andamento terminar.",
+                                          "Wait for the running task to finish."))
+                salvar_pref(backup=bool(corpo.get("ligado")))
             elif caminho == "/api/protegidas":
                 salvar_protegidas(corpo.get("pids") or [])
             elif caminho == "/api/config":
