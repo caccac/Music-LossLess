@@ -79,6 +79,8 @@ a{color:var(--ac)}
   <section class="card">
     <h2 data-i="andamento"></h2>
     <div id="tarefaTxt" class="mut"></div>
+    <div id="intBox" class="esc" style="margin-top:8px"><div id="intTxt" class="warn"></div>
+      <div class="linha" style="margin-top:6px"><button id="bRetomar" onclick="retomar()" data-i="intRetomar"></button><button id="bDescartar" class="sec" onclick="descartarInterrompida()" data-i="intDescartar"></button></div></div>
     <progress id="prog" value="0" max="1" class="esc"></progress>
     <div id="log" class="esc"></div>
   </section>
@@ -178,6 +180,8 @@ pt:{
   cfgCaminho:'Caminho do .p8', salvar:'Salvar',
   naoConectado:'Ainda não conectado.', conectado:'✓ Conectado', loja:'loja', entrar:'Entrar no Apple Music', entrarDeNovo:'Entrar de novo',
   andamento:'Andamento', nada:'Nada em andamento.',
+  intParou:(nome,n,quando,erro)=>`⚠︎ ${nome} (${n} escolhidos, começou ${quando}) parou antes de terminar`+(erro?`: ${erro}`:' — o servidor foi fechado (Terminal fechado ou Mac desligado).')+' O que já foi feito está guardado; Retomar continua só com o que falta.',
+  intRetomar:'Retomar', intDescartar:'Descartar', intDescartarConfirma:'Esquecer esta tarefa? O que já foi feito fica; o que falta você pode escolher de novo na lista.',
   plTitulo:'Playlists que o script não mexe', plVer:'Ver playlists', plBusca:'Buscar playlist',
   plAjuda:'Nas playlists marcadas aqui, a faixa antiga sai junto com a biblioteca, mas a nova não é adicionada: ela vai para uma lista para você pôr à mão (no Mac ou no iPhone). Use para playlists que o iCloud duplicou depois das edições.',
   plResumo:(p,m)=>`${p} playlists protegidas`+(m?` · ${m} faixas para adicionar à mão`:''),
@@ -227,6 +231,8 @@ en:{
   cfgCaminho:'Path to the .p8', salvar:'Save',
   naoConectado:'Not connected yet.', conectado:'✓ Connected', loja:'storefront', entrar:'Sign in to Apple Music', entrarDeNovo:'Sign in again',
   andamento:'Progress', nada:'Nothing running.',
+  intParou:(nome,n,quando,erro)=>`⚠︎ ${nome} (${n} chosen, started ${quando}) stopped before finishing`+(erro?`: ${erro}`:' — the server was closed (Terminal closed or Mac shut down).')+' What was already done is kept; Resume continues with only what is left.',
+  intRetomar:'Resume', intDescartar:'Discard', intDescartarConfirma:'Forget this task? What was done stays; you can choose what is left again in the list.',
   plTitulo:'Playlists the script leaves alone', plVer:'Show playlists', plBusca:'Search playlist',
   plAjuda:'In the playlists ticked here, the old track goes away with the library, but the new one is not added: it goes into a list for you to add by hand (on the Mac or the iPhone). Use it for playlists that iCloud duplicated after edits.',
   plResumo:(p,m)=>`${p} protected playlists`+(m?` · ${m} tracks to add by hand`:''),
@@ -283,6 +289,8 @@ async function api(p,body){
   const j=await r.json(); if(!r.ok) throw new Error(j.erro||('HTTP '+r.status)); return j;
 }
 function erro(e){alert(e.message||e)}
+async function retomar(){ $('bRetomar').disabled=true; try{await api('/api/retomar',{});await atualizar()}catch(e){erro(e)} finally{$('bRetomar').disabled=false} }
+async function descartarInterrompida(){ if(!confirm(t('intDescartarConfirma'))) return; try{await api('/api/retomar/descartar',{});await atualizar()}catch(e){erro(e)} }
 
 function aplicarIdioma(){
   document.documentElement.lang=L==='pt'?'pt-BR':'en';
@@ -313,6 +321,9 @@ async function atualizar(){
     vis($('prog'),tf.rodando&&tf.total>0); $('prog').max=tf.total||1; $('prog').value=tf.feito;
     vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
   } else $('tarefaTxt').textContent=t('nada');
+  const it=E.interrompida; vis($('intBox'),!!it&&!tf.rodando);
+  if(it){ const q=it.inicio?new Date(it.inicio).toLocaleString(L==='en'?'en-US':'pt-BR',{dateStyle:'short',timeStyle:'short'}):'';
+    $('intTxt').textContent=t('intParou')(it.nome,it.n,q,it.erro); }
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
   if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); if(S) carregarSemPar(); carregarBackup(); }
   $('bkLigado').checked=E.comBackup!==false; $('bkLigado').disabled=tf.rodando; vis($('bkDesligado'),E.comBackup===false);

@@ -49,6 +49,7 @@ CACHE = DADOS / "cache_catalogo.json"
 REGISTRO = DADOS / "registro.jsonl"
 SNAPSHOTS = DADOS / "playlists_antes"
 PREFS = DADOS / "preferencias.json"
+INTERROMPIDA = DADOS / "tarefa_interrompida.json"  # troca/remoção que parou antes do fim
 IDIOMA = {"atual": "pt"}  # "pt" ou "en"; a página escolhe
 
 
@@ -109,22 +110,56 @@ class Tarefa:
         self.erro = None
         self.log = []
 
-    def iniciar(self, nome, fn, *args):
+    def iniciar(self, nome, fn, *args, tipo=None, retomada=False):
+        """tipo != None: tarefa que pode ser retomada. Fica anotada em INTERROMPIDA até terminar; se parar
+        no meio (erro, Terminal fechado, Mac desligado), a página oferece Retomar. Se a conexão com a Apple
+        Music cair (o Mac dormiu, Wi-Fi caiu), espera ela voltar e continua sozinha."""
         with self.lock:
             if self.rodando:
                 raise RuntimeError(tr("Já existe uma tarefa em andamento.", "A task is already running."))
             self.rodando, self.nome, self.etapa = True, nome, ""
             self.feito = self.total = 0
             self.erro = None
+        if tipo:
+            anterior = carregar(INTERROMPIDA, {}) or {}
+            salvar(INTERROMPIDA, {"tipo": tipo, "args": list(args),
+                                  "inicio": (retomada and anterior.get("inicio"))
+                                  or datetime.now().isoformat(timespec="seconds"),
+                                  "parou": None, "erro": None})
+            if retomada:
+                self.msg(tr("Retomando de onde parou…", "Resuming where it stopped…"))
 
-        def alvo():
+        def alvo(retomada=retomada):
+            seguidas = 0
             try:
-                fn(*args)
-                self.msg(tr("Concluído.", "Done."))
+                while True:
+                    try:
+                        fn(*args, **({"retomada": retomada} if tipo else {}))
+                        if tipo:
+                            INTERROMPIDA.unlink(missing_ok=True)
+                        self.msg(tr("Concluído.", "Done."))
+                        return
+                    except SemConexao as e:
+                        if not tipo or seguidas >= 20:
+                            raise
+                        seguidas += 1
+                        self.msg(tr(f"   sem conexão com a Apple Music ({e}). O Mac dormiu ou a internet caiu? "
+                                    "Continuo sozinho quando a conexão voltar…",
+                                    f"   no connection to Apple Music ({e}). Did the Mac sleep or the internet "
+                                    "drop? I continue by myself when the connection is back…"))
+                        if not esperar_conexao():
+                            raise
+                        self.msg(tr("   a conexão voltou; continuando de onde parou",
+                                    "   the connection is back; continuing where it stopped"))
+                        retomada = True
             except Exception as e:  # noqa: BLE001
                 self.erro = str(e)
                 self.msg(tr("ERRO: ", "ERROR: ") + str(e))
                 traceback.print_exc()
+                if tipo and INTERROMPIDA.exists():
+                    info = carregar(INTERROMPIDA, {}) or {}
+                    info.update(parou=datetime.now().isoformat(timespec="seconds"), erro=str(e))
+                    salvar(INTERROMPIDA, info)
             finally:
                 self.rodando = False
         threading.Thread(target=alvo, daemon=True).start()
@@ -460,6 +495,24 @@ def gerar_token(team, kid, chave, validade=60 * 60 * 24 * 30):
     return entrada + "." + b64u(rr.to_bytes(32, "big") + ss.to_bytes(32, "big"))
 
 
+class SemConexao(RuntimeError):
+    """A Apple Music não respondeu: sem internet (o Mac dormiu, o Wi-Fi caiu) ou o serviço fora do ar."""
+
+
+def esperar_conexao(limite=2 * 3600):
+    """Espera até a API da Apple Music responder de novo. Conta só o tempo com o Mac acordado."""
+    inicio = time.monotonic()
+    while time.monotonic() - inicio < limite:
+        try:
+            urllib.request.urlopen(urllib.request.Request(API + "/v1/test", method="GET"), timeout=15).close()
+            return True
+        except urllib.error.HTTPError:
+            return True  # respondeu (401 sem token): a conexão voltou
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+            time.sleep(30)
+    return False
+
+
 class AppleMusic:
     def __init__(self):
         self.dev = None
@@ -530,7 +583,7 @@ class AppleMusic:
                 raise RuntimeError(f"Apple Music API {e.code}: {e.read()[:300]!r}") from e
             except (urllib.error.URLError, TimeoutError, ConnectionError):
                 time.sleep(min(60, 2 ** tentativa))
-        raise RuntimeError(tr("Apple Music não respondeu: ", "Apple Music did not respond: ") + caminho)
+        raise SemConexao(tr("Apple Music não respondeu: ", "Apple Music did not respond: ") + caminho)
 
 
 AM = AppleMusic()
@@ -1311,10 +1364,10 @@ def esperar_icloud():
     if aguardar_pendentes(limite=LIMITE_PEND, alvo=ALVO_PEND, sem_progresso=3 * 3600) > LIMITE_PEND:
         raise RuntimeError(tr("O iCloud não trouxe nenhuma música nova em 3 horas. Parei para não acumular; "
                               "o que já foi trocado se completa sozinho quando elas chegarem. Clique em "
-                              "Trocar de novo mais tarde para continuar de onde parou.",
+                              "Retomar (em Andamento) mais tarde para continuar de onde parou.",
                               "iCloud delivered no new songs in 3 hours. Stopped so they don't pile up; "
-                              "what was already swapped completes itself when they arrive. Click Swap "
-                              "again later to continue where it stopped."))
+                              "what was already swapped completes itself when they arrive. Click Resume "
+                              "(under Progress) later to continue where it stopped."))
 
 
 def trocar_bloqueadas(bloq, faixas, motivo):
@@ -1380,14 +1433,17 @@ def _trocar_bloqueadas(bloq, faixas, motivo):
 VERSAO_ANALISE = 2  # 2 = faixas identificadas pelo persistent ID
 
 
-def job_aplicar(ids):
+def job_aplicar(ids, retomada=False):
     an = carregar(ANALISE, {})
     if an.get("versao") != VERSAO_ANALISE:
         raise RuntimeError(tr("Esta análise é de uma versão anterior. Clique em Analisar biblioteca de novo.",
                               "This analysis is from an older version. Click Analyze library again."))
     escolhidos = [i for i in an.get("itens", []) if i["id"] in set(ids) and not i.get("feito")]
-    if not escolhidos:
+    if not escolhidos and not retomada:
         raise RuntimeError(tr("Nada selecionado (ou já aplicado).", "Nothing selected (or already applied)."))
+    if retomada:
+        T.msg(tr(f"   faltam {len(escolhidos)} dos {len(set(ids))} álbuns escolhidos",
+                 f"   {len(escolhidos)} of the {len(set(ids))} chosen albums still to go"))
     T.passo(tr(f"Trocando {len(escolhidos)} álbuns…", f"Swapping {len(escolhidos)} albums…"), len(escolhidos))
     for lote in em_lotes(escolhidos, 25):
         esperar_icloud()
@@ -1514,7 +1570,7 @@ def achar_repetidas(faixas):
     return grupos
 
 
-def job_repetidas(ids):
+def job_repetidas(ids, retomada=False):
     T.passo(tr("Lendo a biblioteca…", "Reading the library…"))
     faixas = exportar_biblioteca()
     grupos = [g for g in achar_repetidas(faixas) if g["id"] in set(ids)]
@@ -1552,7 +1608,7 @@ def grupos_sem_par(faixas):
     return saida
 
 
-def job_apagar_sem_par(ids):
+def job_apagar_sem_par(ids, retomada=False):
     """Apaga da biblioteca (e do iCloud) os álbuns escolhidos que não têm equivalente no catálogo.
     Antes, baixa e copia para o backup as faixas que são arquivos seus; as que não baixarem ficam."""
     T.passo(tr("Lendo a biblioteca…", "Reading the library…"))
@@ -1560,6 +1616,9 @@ def job_apagar_sem_par(ids):
     por_id = {t["id"]: t for t in faixas}
     grupos = [g for g in grupos_sem_par(faixas) if g["id"] in set(ids)]
     alvo = [f["id"] for g in grupos for f in g["faixas"]]
+    if not alvo and retomada:
+        T.msg(tr("   os álbuns marcados já saíram da biblioteca", "   the selected albums have already left the library"))
+        return
     if not alvo:
         raise RuntimeError(tr("Nada para apagar (os álbuns marcados não estão mais na biblioteca).",
                               "Nothing to delete (the selected albums are no longer in the library)."))
@@ -1637,9 +1696,36 @@ def apagar_backup():
     T.msg(tr("Backup das versões antigas enviado para o Lixo.", "Old versions backup moved to the Trash."))
 
 
+RETOMAVEIS = {"aplicar": (("Troca", "Swap"), job_aplicar),
+              "repetidas": (("Repetidas", "Duplicates"), job_repetidas),
+              "sempar": (("Sem equivalente", "No catalog match"), job_apagar_sem_par)}
+
+
+def iniciar_tarefa(tipo, ids, retomada=False):
+    nome, fn = RETOMAVEIS[tipo]
+    T.iniciar(tr(*nome), fn, ids, tipo=tipo, retomada=retomada)
+
+
+def info_interrompida():
+    """A tarefa que parou antes do fim, se houver e não estiver rodando agora."""
+    info = carregar(INTERROMPIDA, None)
+    if T.rodando or not info or info.get("tipo") not in RETOMAVEIS:
+        return None
+    ids = (info.get("args") or [[]])[0]
+    return {"tipo": info["tipo"], "nome": tr(*RETOMAVEIS[info["tipo"]][0]), "n": len(ids),
+            "inicio": info.get("inicio"), "parou": info.get("parou"), "erro": info.get("erro")}
+
+
+def retomar():
+    info = carregar(INTERROMPIDA, None)
+    if not info or info.get("tipo") not in RETOMAVEIS:
+        raise RuntimeError(tr("Não há tarefa interrompida.", "There is no interrupted task."))
+    iniciar_tarefa(info["tipo"], (info.get("args") or [[]])[0], retomada=True)
+
+
 def estado():
     return {"configurado": bool(AM.dev), "devToken": AM.dev, "logado": bool(AM.user), "storefront": AM.sf,
-            "tarefa": T.estado(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()),
+            "tarefa": T.estado(), "interrompida": info_interrompida(), "temAnalise": ANALISE.exists(), "pendentes": len(carregar_pendentes()),
             "aMao": len(carregar(A_MAO, []) or []), "protegidas": len(protegidas()), "backup": str(pasta_backup()), "comBackup": com_backup(), "idioma": IDIOMA["atual"],
             "config": {k: v for k, v in (carregar(CONFIG, {}) or {}).items()}}
 
@@ -1739,13 +1825,18 @@ class Pagina(BaseHTTPRequestHandler):
                     raise RuntimeError(tr("Entre no Apple Music primeiro.", "Sign in to Apple Music first."))
                 T.iniciar(tr("Análise", "Analysis"), job_analisar)
             elif caminho == "/api/aplicar":
-                T.iniciar(tr("Troca", "Swap"), job_aplicar, corpo.get("ids") or [])
+                iniciar_tarefa("aplicar", corpo.get("ids") or [])
+            elif caminho == "/api/retomar":
+                retomar()
+            elif caminho == "/api/retomar/descartar":
+                if not T.rodando:
+                    INTERROMPIDA.unlink(missing_ok=True)
             elif caminho == "/api/backup/apagar":
                 apagar_backup()
             elif caminho == "/api/repetidas":
-                T.iniciar(tr("Repetidas", "Duplicates"), job_repetidas, corpo.get("ids") or [])
+                iniciar_tarefa("repetidas", corpo.get("ids") or [])
             elif caminho == "/api/sempar":
-                T.iniciar(tr("Sem equivalente", "No catalog match"), job_apagar_sem_par, corpo.get("ids") or [])
+                iniciar_tarefa("sempar", corpo.get("ids") or [])
             else:
                 return self._json({"erro": "não encontrado"}, 404)
             self._json(estado())
