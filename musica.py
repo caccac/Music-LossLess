@@ -86,6 +86,8 @@ DADOS.mkdir(exist_ok=True)
 
 STATUS_TROCAR = {"uploaded", "matched", "no longer available", "unknown"}
 STATUS_BACKUP = {"uploaded", "matched", "purchased", "unknown"}  # arquivos que são seus
+# Enquanto existir uma faixa nestes estados, a Apple ignora o pedido de adicionar a mesma música do catálogo.
+STATUS_OCUPA = {"matched", "uploaded", "no longer available"}
 RANK_STATUS = {"subscription": 5, "purchased": 4, "matched": 3, "uploaded": 2,
                "unknown": 1, "no longer available": 0}
 CAMPOS = ["databaseID", "persistentID", "name", "artist", "albumArtist", "album",
@@ -1382,18 +1384,19 @@ def aplicar_lote(lote):
         T.msg(tr(f"   {mudaram} faixas mudaram desde a análise; ficam como estão.",
                  f"   {mudaram} tracks changed since the analysis; left as they are."))
     apagadas = set()
-    # Faixa antiga Enviada/Correspondida fica ligada à música do catálogo: adicionar a versão do
-    # catálogo não cria faixa nova enquanto ela existir. O mesmo vale se outra faixa Correspondida/Enviada
-    # com o mesmo nome e álbum estiver na biblioteca. Esses casos vão direto para trocar_bloqueadas.
+    # Faixa antiga Enviada/Correspondida/Não disponível mais fica ligada à música do catálogo: adicionar a
+    # versão do catálogo não cria faixa nova enquanto ela existir (a Apple responde 202 e ignora). O mesmo
+    # vale se outra faixa assim com o mesmo nome e álbum estiver na biblioteca. Esses casos vão direto para
+    # trocar_bloqueadas.
     ocup_idx = defaultdict(list)
     for t in faixas:
-        if t["cloudStatus"] in ("matched", "uploaded"):
+        if t["cloudStatus"] in STATUS_OCUPA:
             ocup_idx[(norm(t["name"]), norm(t["album"]))].append(t)
     bloq = {}
     for k, (f, alb) in list(validas.items()):
         nome, album, dur = norm(f["novoNome"]), norm(alb), f["novoDur"]
         ocupantes = [t for t in ocup_idx.get((nome, album), []) if abs((t["duration"] or 0) - dur) <= 3]
-        if ocupantes or por_id[f["old"]]["cloudStatus"] in ("matched", "uploaded", "unknown"):
+        if ocupantes or por_id[f["old"]]["cloudStatus"] in STATUS_OCUPA | {"unknown"}:
             b = bloq.setdefault(f["new"], {"sid": f["new"], "esperado": (nome, album, dur), "olds": set()})
             b["olds"].add(f["old"])
             b["olds"].update(t["id"] for t in ocupantes)
@@ -1418,7 +1421,7 @@ def aplicar_lote(lote):
             if k in achados or f["old"] in apagadas:
                 continue
             nome, album, dur = esperado[k]
-            ocupantes = [t for t in faixas if t["cloudStatus"] in ("matched", "uploaded")
+            ocupantes = [t for t in faixas if t["cloudStatus"] in STATUS_OCUPA
                          and norm(t["name"]) == nome and norm(t["album"]) == album
                          and abs((t["duration"] or 0) - dur) <= 3]
             if ocupantes:
