@@ -181,6 +181,8 @@ pt:{
   plTitulo:'Playlists que o script não mexe', plVer:'Ver playlists', plBusca:'Buscar playlist',
   plAjuda:'Nas playlists marcadas aqui, a faixa antiga sai junto com a biblioteca, mas a nova não é adicionada: ela vai para uma lista para você pôr à mão (no Mac ou no iPhone). Use para playlists que o iCloud duplicou depois das edições.',
   plResumo:(p,m)=>`${p} playlists protegidas`+(m?` · ${m} faixas para adicionar à mão`:''),
+  plNova:n=>`Nova playlist “Novas para ${n}”`, plAdicionar:'Adicionar à playlist', plAdicionando:'Adicionando…',
+  plAdicionado:r=>`${r.adicionadas} faixas adicionadas a “${r.playlist}”`+(r.jaEstavam?` (${r.jaEstavam} já estavam)`:'')+(r.falhas?` · ${r.falhas} não entraram`:'')+'. Depois é só selecionar todas e arrastar para a playlist protegida.',
   plMaoTit:'Faixas para adicionar à mão', plMaoAjuda:'Some da lista sozinha quando a faixa estiver na playlist.', plMaoVazio:'Nenhuma faixa para adicionar à mão.',
   bkTitulo:'Backup das versões antigas', bkVazio:'Nenhum backup no momento.', bkBotao:'Mover backup para o Lixo',
   bkOpcao:'Fazer backup das faixas que são arquivos seus antes de apagá-las',
@@ -228,6 +230,8 @@ en:{
   plTitulo:'Playlists the script leaves alone', plVer:'Show playlists', plBusca:'Search playlist',
   plAjuda:'In the playlists ticked here, the old track goes away with the library, but the new one is not added: it goes into a list for you to add by hand (on the Mac or the iPhone). Use it for playlists that iCloud duplicated after edits.',
   plResumo:(p,m)=>`${p} protected playlists`+(m?` · ${m} tracks to add by hand`:''),
+  plNova:n=>`New playlist “New for ${n}”`, plAdicionar:'Add to playlist', plAdicionando:'Adding…',
+  plAdicionado:r=>`${r.adicionadas} tracks added to “${r.playlist}”`+(r.jaEstavam?` (${r.jaEstavam} were already there)`:'')+(r.falhas?` · ${r.falhas} could not be added`:'')+'. Then select them all and drag them into the protected playlist.',
   plMaoTit:'Tracks to add by hand', plMaoAjuda:'They leave the list by themselves once the track is in the playlist.', plMaoVazio:'No tracks to add by hand.',
   bkTitulo:'Old versions backup', bkVazio:'No backup at the moment.', bkBotao:'Move backup to Trash',
   bkOpcao:'Back up tracks that are your own files before deleting them',
@@ -335,8 +339,20 @@ function desenharProtegidas(){
   const nMao=PL.aMao.reduce((n,g)=>n+g.faixas.length,0);
   $('plTxt').textContent=t('plResumo')(PL.playlists.filter(p=>p.protegida).length,nMao);
   $('plMao').innerHTML=PL.aMao.length?`<h2 style="font-size:15px">${t('plMaoTit')}</h2><p class="mut" style="margin:0 0 6px">${t('plMaoAjuda')}</p>`
-    +PL.aMao.map(g=>`<details open><summary><b>${esc(g.nome)}</b> <span class="mut">${t('faixasN')(g.faixas.length)}</span></summary><ul>${g.faixas.map(f=>`<li>${esc(f.name)} <span class="mut">${esc(f.artist)} — ${esc(f.album)}</span></li>`).join('')}</ul></details>`).join('')
+    +PL.aMao.map(g=>{
+      const opcoes=`<option value="">${esc(t('plNova')(g.nome))}</option>`+PL.playlists.filter(p=>!p.protegida).map(p=>`<option value="${esc(p.pid)}">${esc(p.nome)}</option>`).join('');
+      return `<details open><summary><b>${esc(g.nome)}</b> <span class="mut">${t('faixasN')(g.faixas.length)}</span></summary>
+      <div class="linha" style="margin:6px 0"><select id="plDest-${esc(g.pid)}" style="max-width:320px">${opcoes}</select>
+        <button class="sec" onclick="adicionarAPlaylist('${esc(g.pid)}',this)">${t('plAdicionar')}</button><span class="mut" id="plRes-${esc(g.pid)}"></span></div>
+      <ul>${g.faixas.map(f=>`<li>${esc(f.name)} <span class="mut">${esc(f.artist)} — ${esc(f.album)}</span></li>`).join('')}</ul></details>`;}).join('')
     :`<p class="mut">${t('plMaoVazio')}</p>`;
+}
+async function adicionarAPlaylist(origem,botao){
+  const destino=$('plDest-'+origem).value, res=$('plRes-'+origem);
+  botao.disabled=true; res.textContent=t('plAdicionando');
+  try{const r=await api('/api/protegidas/adicionar',{origem,destino}); res.textContent=t('plAdicionado')(r);
+    if(!destino){PL=await api('/api/protegidas'); PL.playlists.sort((x,y)=>y.protegida-x.protegida); desenharProtegidas(); $('plDest-'+origem).value=r.pid; $('plRes-'+origem).textContent=t('plAdicionado')(r);}}
+  catch(e){res.textContent='';erro(e)} finally{botao.disabled=false}
 }
 async function protegerPl(pid,v){
   const p=PL.playlists.find(x=>x.pid===pid); p.protegida=v;

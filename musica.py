@@ -300,6 +300,19 @@ on run argv
 end run
 """
 
+AS_PLAYLIST_POR_NOME = r"""
+on run argv
+	tell application "Music"
+		if exists user playlist (item 1 of argv) then
+			set p to user playlist (item 1 of argv)
+		else
+			set p to make new user playlist with properties {name:(item 1 of argv)}
+		end if
+		return persistent ID of p
+	end tell
+end run
+"""
+
 AS_APAGAR_PLAYLIST = r"""
 on run argv
 	tell application "Music"
@@ -960,6 +973,33 @@ def info_protegidas():
     return {"playlists": sorted(({"pid": p["pid"], "nome": p["nome"], "n": len(p["faixas"]),
                                   "protegida": p["pid"] in prot} for p in pls), key=lambda p: norm(p["nome"])),
             "aMao": sorted(grupos.values(), key=lambda g: norm(g["nome"]))}
+
+
+def adicionar_a_playlist(origem, destino):
+    """Põe numa playlist (existente, ou uma nova "Novas para …" se destino vazio) as faixas da lista de
+    adicionar à mão da playlist protegida `origem`. Elas continuam na lista até entrarem na protegida."""
+    pls = {p["pid"]: p for p in ler_playlists()}
+    if origem not in pls:
+        raise RuntimeError(tr("Playlist não encontrada.", "Playlist not found."))
+    if destino in protegidas():
+        raise RuntimeError(tr("Essa playlist está protegida; escolha outra.",
+                              "That playlist is protected; choose another one."))
+    ids = list(dict.fromkeys(x["id"] for x in carregar(A_MAO, []) or [] if x["pid"] == origem))
+    if not ids:
+        raise RuntimeError(tr("Nenhuma faixa para adicionar.", "No tracks to add."))
+    if not destino:
+        destino = osa(AS_PLAYLIST_POR_NOME, [tr(f"Novas para {pls[origem]['nome']}",
+                                                f"New for {pls[origem]['nome']}")])
+        pls = {p["pid"]: p for p in ler_playlists()}
+    if destino not in pls:
+        raise RuntimeError(tr("Playlist não encontrada.", "Playlist not found."))
+    novas = [i for i in ids if i not in set(pls[destino]["faixas"])]
+    falhas = 0
+    if novas:
+        r = osa(AS_TROCAR_NA_PLAYLIST, [destino, "", ",".join(novas)])
+        falhas = int(r.split(":")[-1]) if r.startswith("ok:") else len(novas)
+    return {"pid": destino, "playlist": pls[destino]["nome"], "adicionadas": len(novas) - falhas,
+            "jaEstavam": len(ids) - len(novas), "falhas": falhas}
 
 
 def salvar_protegidas(pids):
@@ -1688,6 +1728,8 @@ class Pagina(BaseHTTPRequestHandler):
                 salvar_pref(backup=bool(corpo.get("ligado")))
             elif caminho == "/api/protegidas":
                 salvar_protegidas(corpo.get("pids") or [])
+            elif caminho == "/api/protegidas/adicionar":
+                return self._json(adicionar_a_playlist(corpo.get("origem") or "", corpo.get("destino") or ""))
             elif caminho == "/api/config":
                 configurar(corpo)
             elif caminho == "/api/login":
