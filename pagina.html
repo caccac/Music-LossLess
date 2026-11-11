@@ -128,6 +128,12 @@ a{color:var(--ac)}
         <select id="fVar" onchange="desenhar()">
           <option value="" data-i="fFormato"></option><option value="dolby-atmos" data-i="fComAtmos"></option><option value="hi-res-lossless">Hi-Res Lossless</option>
         </select>
+        <select id="fOrdem" onchange="desenhar()">
+          <option value="artista" data-i="ordemArtista"></option>
+          <option value="faixas" data-i="ordemFaixas"></option>
+          <option value="formato" data-i="ordemFormato"></option>
+          <option value="confianca" data-i="ordemConfianca"></option>
+        </select>
         <input type="text" id="fBusca" data-i-ph="fBusca" oninput="desenhar()">
         <label class="linha mut"><input type="checkbox" id="fFeitos" onchange="desenhar()"> <span data-i="fFeitos"></span></label>
       </div>
@@ -212,6 +218,7 @@ pt:{
   fTudo:'Tudo', fTrocar:'Enviadas / correspondidas / indisponíveis', fAtmos:'Apple Music → edição com Atmos',
   fConf:'Qualquer confiança', conf_alta:'alta', 'conf_média':'média', conf_baixa:'baixa', confianca:c=>`confiança ${c}`,
   fFormato:'Qualquer formato', fComAtmos:'Com Dolby Atmos', fBusca:'Buscar artista ou álbum', fFeitos:'mostrar já trocados',
+  ordemArtista:'Artista', ordemFaixas:'Mais faixas', ordemFormato:'Melhor formato', ordemConfianca:'Confiança',
   mais:'Mostrar mais', marcarVis:'Marcar visíveis', desmarcarVis:'Desmarcar visíveis', aplicar:'Aplicar',
   semAtmos:'versão atual sem Atmos', faixasDe:(a,b)=>`${a}/${b} faixas`, abrir:'abrir', trocado:'✓ trocado', faixas:'faixas',
   semPar:'Sem par no catálogo (ficam como estão): ', pendentes:'Pendentes da última tentativa: ', vazio:'Nada com esses filtros.',
@@ -263,6 +270,7 @@ en:{
   fTudo:'Everything', fTrocar:'Uploaded / matched / unavailable', fAtmos:'Apple Music → Dolby Atmos edition',
   fConf:'Any confidence', conf_alta:'high', 'conf_média':'medium', conf_baixa:'low', confianca:c=>`${c} confidence`,
   fFormato:'Any format', fComAtmos:'With Dolby Atmos', fBusca:'Search artist or album', fFeitos:'show already swapped',
+  ordemArtista:'Artist', ordemFaixas:'Most tracks', ordemFormato:'Best format', ordemConfianca:'Confidence',
   mais:'Show more', marcarVis:'Select visible', desmarcarVis:'Deselect visible', aplicar:'Apply',
   semAtmos:'current version has no Atmos', faixasDe:(a,b)=>`${a}/${b} tracks`, abrir:'open', trocado:'✓ swapped', faixas:'tracks',
   semPar:'No catalog match (left as they are): ', pendentes:'Pending from the last attempt: ', vazio:'Nothing matches these filters.',
@@ -436,8 +444,25 @@ async function carregarAnalise(manterSelecao){
 const semAcento=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function filtrados(){
   const tipo=$('fTipo').value, conf=$('fConf').value, v=$('fVar').value, b=semAcento($('fBusca').value), f=$('fFeitos').checked;
-  return A.itens.filter(i=>(!tipo||i.tipo===tipo)&&(!conf||i.conf===conf)&&(!v||i.catalogo.variants.includes(v))&&(f||!i.feito)
+  const ord=$('fOrdem')?.value||'artista';
+  const its=A.itens.filter(i=>(!tipo||i.tipo===tipo)&&(!conf||i.conf===conf)&&(!v||i.catalogo.variants.includes(v))&&(f||!i.feito)
     &&(!b||semAcento(i.artista+' '+i.album+' '+i.catalogo.nome).includes(b)));
+  if(ord==='faixas'){
+    its.sort((a,b)=>b.faixas.length-a.faixas.length);
+  }else if(ord==='formato'){
+    const rf=i=>{
+      const vs=i.catalogo&&i.catalogo.variants?i.catalogo.variants:[];
+      if(vs.includes('dolby-atmos')) return 3;
+      if(vs.includes('hi-res-lossless')) return 2;
+      if(vs.includes('lossless')) return 1;
+      return 0;
+    };
+    its.sort((a,b)=>rf(b)-rf(a));
+  }else if(ord==='confianca'){
+    const rc={'alta':3,'média':2,'baixa':1};
+    its.sort((a,b)=>(rc[b.conf]||0)-(rc[a.conf]||0));
+  }
+  return its;
 }
 function chipsVar(vs){
   const out=[]; if(vs.includes('dolby-atmos')) out.push(VAR['dolby-atmos']);
