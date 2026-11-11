@@ -53,6 +53,7 @@ a{color:var(--ac)}
     <div class="idioma" role="group" aria-label="Idioma / Language">
       <button id="lang-pt" onclick="mudarIdioma('pt')">PT</button>
       <button id="lang-en" onclick="mudarIdioma('en')">EN</button>
+      <button id="lang-es" onclick="mudarIdioma('es')">ES</button>
     </div>
   </div>
   <p class="sub"><span data-i="intro"></span> <span id="pastaBackup"></span>.</p>
@@ -274,10 +275,61 @@ en:{
   confirmarRep:(n,b)=>`Remove ${n} duplicate copies?\n\nThe best-quality copy stays; play counts and playlists move to it. ${b?`Copies that are your own files are downloaded and copied to ${b} before they go.`:'Backup turned off: copies that are your own files go without a copy.'}`,
   st:{uploaded:'Uploaded',matched:'Matched','no longer available':'No Longer Available',subscription:'Apple Music',purchased:'Purchased',unknown:'Unknown'},
   mkErro:'Could not load MusicKit JS.', locale:'en-US'
+},
+es:{
+  intro:'Reemplaza las pistas antiguas de tu biblioteca de la app Música por las versiones Lossless / Dolby Atmos del catálogo y elimina las repetidas. Antes de borrar cualquier archivo tuyo, se descarga y se copia en',
+  cfgTitulo:'1. Clave de MusicKit', cfgOk:'✓ Clave configurada.', cfgTrocar:'Cambiar clave',
+  cfgAjuda:'En el <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" rel="noopener">portal de desarrolladores</a>, crea un <b>Media ID</b> (Identifiers › + › Media IDs, con MusicKit). Después, en <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener">Keys</a>, crea una clave con <b>Media Services (MusicKit)</b> vinculada a ese Media ID y descarga el archivo .p8.',
+  cfgCaminho:'Ruta del .p8', salvar:'Guardar',
+  naoConectado:'Todavía no conectado.', conectado:'✓ Conectado', loja:'tienda', entrar:'Iniciar sesión en Apple Music', entrarDeNovo:'Iniciar sesión de nuevo',
+  andamento:'Progreso', nada:'Nada en curso.',
+  intParou:(nome,n,quando,erro)=>`⚠︎ ${nome} (${n} elegidas, empezó ${quando}) se detuvo antes de terminar`+(erro?`: ${erro}`:' — el servidor se cerró (Terminal cerrado o Mac apagado).')+' Lo que ya se hizo queda guardado; Reanudar continúa solo con lo que falta.',
+  intRetomar:'Reanudar', intDescartar:'Descartar', intDescartarConfirma:'¿Olvidar esta tarea? Lo que ya se hizo queda; lo que falta puedes elegirlo de nuevo en la lista.',
+  plTitulo:'Playlists que el script no toca', plVer:'Ver playlists', plBusca:'Buscar playlist',
+  plAjuda:'En las playlists marcadas aquí, la pista antigua sale junto con la biblioteca, pero la nueva no se añade: va a una lista para que la añadas a mano (en el Mac o en el iPhone). Úsalo con playlists que iCloud duplicó después de las ediciones.',
+  plResumo:(p,m)=>`${p} playlists protegidas`+(m?` · ${m} pistas para añadir a mano`:''),
+  plNova:n=>`Nueva playlist “Nuevas para ${n}”`, plAdicionar:'Añadir a la playlist', plAdicionando:'Añadiendo…',
+  plAdicionado:r=>`${r.adicionadas} pistas añadidas a “${r.playlist}”`+(r.jaEstavam?` (${r.jaEstavam} ya estaban)`:'')+(r.falhas?` · ${r.falhas} no entraron`:'')+'. Después solo hay que seleccionarlas todas y arrastrarlas a la playlist protegida.',
+  plMaoTit:'Pistas para añadir a mano', plMaoAjuda:'Salen de la lista solas cuando la pista esté en la playlist.', plMaoVazio:'Ninguna pista para añadir a mano.',
+  bkTitulo:'Copia de seguridad de las versiones antiguas', bkVazio:'Sin copia de seguridad por ahora.', bkBotao:'Mover la copia a la Papelera',
+  bkOpcao:'Hacer copia de seguridad de las pistas que son archivos tuyos antes de borrarlas',
+  bkDesligado:'Copia desactivada: las pistas subidas, coincidentes o compradas que se reemplacen o eliminen salen de la biblioteca y de iCloud sin ninguna copia.',
+  bkDesligarConfirma:'¿Desactivar la copia de seguridad?\n\nA partir de ahora, las pistas que son archivos tuyos (subidas, coincidentes, compradas) salen de la biblioteca y de iCloud sin copia. En los reemplazos queda la versión del catálogo; en Sin equivalente, la canción desaparece para siempre.',
+  bkInfo:(n,tam,p)=>`${n} archivos (${tam}) en ${p}. Son tus pistas que fueron reemplazadas o eliminadas como repetidas.`,
+  bkRodando:'Disponible cuando termine la tarea en curso.',
+  bkPendentes:n=>`Disponible cuando las ${n} canciones pendientes lleguen de iCloud.`,
+  bkConfirma:(n,tam)=>`¿Mover ${n} archivos (${tam}) a la Papelera?\n\nPara las pistas subidas que fueron reemplazadas, esta es la única copia de tu archivo original. Quedan en la Papelera hasta que la vacíes.`,
+  pendentesNuvem:n=>`${n} canciones reemplazadas esperando a que iCloud entregue la versión nueva. Las reproducciones y las playlists se ajustan solas cuando lleguen; deja esta página abierta.`, servidorParado:'Servidor detenido. Ejecuta “python3 musica.py” de nuevo.',
+  abaTrocar:'Cambiar por Lossless / Atmos', abaRepetidas:'Repetidas', analisar:'Analizar biblioteca',
+  analisarDeNovo:'¿Analizar de nuevo? (lo ya cambiado queda registrado)',
+  analiseAntiga:'Este análisis lo hizo una versión anterior, que identificaba las pistas de una forma que no es segura. Haz clic en Analizar biblioteca de nuevo (es rápido: el catálogo ya está en caché).',
+  resumo:(d,nT,nA,nf)=>`Análisis del ${d}: ${nT} álbumes para cambiar, ${nA} con edición en Atmos, ${nf} pistas.`,
+  falhas:n=>` ⚠︎ ${n} álbumes fallaron en la consulta; haz clic en Analizar de nuevo para reintentar solo esos.`,
+  naoAchados:n=>`${n} álbumes no tienen equivalente en el catálogo y quedan como están. Para borrar alguno, usa la pestaña Sin equivalente.`,
+  abaSemPar:'Sin equivalente', lerSemPar:'Cargar álbumes sin equivalente',
+  spAjuda:'Álbumes que el último análisis no encontró en el catálogo de Apple Music. Nada viene marcado: elige los que quieres borrar de la biblioteca (y de iCloud). Las pistas que son archivos tuyos se descargan y se copian a la copia de seguridad antes de salir; si la copia falla, se quedan.',
+  spQualquer:'Cualquier estado', spUploaded:'Con pistas subidas', spMatched:'Con pistas coincidentes', spIndisp:'Con pistas no disponibles',
+  spResumo:(g,f)=>`${g} álbumes sin equivalente · ${f} pistas`, spSel:(g,f)=>`${g} álbumes marcados · ${f} pistas`,
+  spApagar:'Borrar marcados', semNome:'(sin nombre)', spSemAnalise:'Analiza primero la biblioteca (pestaña Cambiar).', reproducoes:n=>`${n}×`,
+  spConfirma:(g,f,p,b,pl)=>`¿Borrar ${g} álbumes (${f} pistas) de la biblioteca y de iCloud?\n\n${b?`• No existe versión de ellos en el catálogo: una vez borrados, solo quedan en la copia de seguridad.\n• ${p} pistas que son archivos tuyos se descargarán y copiarán a\n  ${b}\n  antes de salir. Si alguna no se descarga, se queda.`:`• No existe versión de ellos en el catálogo y la copia está desactivada: ${p} pistas que son archivos tuyos desaparecen para siempre, sin copia.`}\n• También salen de las playlists.${pl?`\n• Se pierden ${pl} reproducciones registradas (quedan anotadas en dados/registro.jsonl).`:''}`, faixasN:n=>`${n} pistas`,
+  fTudo:'Todo', fTrocar:'Subidas / coincidentes / no disponibles', fAtmos:'Apple Music → edición con Atmos',
+  fConf:'Cualquier confianza', conf_alta:'alta', 'conf_média':'media', conf_baixa:'baja', confianca:c=>`confianza ${c}`,
+  fFormato:'Cualquier formato', fComAtmos:'Con Dolby Atmos', fBusca:'Buscar artista o álbum', fFeitos:'mostrar ya cambiados',
+  mais:'Mostrar más', marcarVis:'Marcar visibles', desmarcarVis:'Desmarcar visibles', aplicar:'Aplicar',
+  semAtmos:'la versión actual no tiene Atmos', faixasDe:(a,b)=>`${a}/${b} pistas`, abrir:'abrir', trocado:'✓ cambiado', faixas:'pistas',
+  semPar:'Sin equivalente en el catálogo (quedan como están): ', pendentes:'Pendientes del último intento: ', vazio:'Nada con estos filtros.',
+  selecao:(a,f)=>`${a} álbumes marcados · ${f} pistas`,
+  confirmar:(a,nf,p,b)=>`¿Cambiar ${a} álbumes (${nf} pistas)?\n\n• Las versiones del catálogo entran en la biblioteca.\n• Las reproducciones, las notas y los favoritos pasan a ellas. En las playlists, la nueva entra al final y la antigua sale (en las protegidas, la nueva va a la lista de añadir a mano).\n• Algunas llegan de iCloud minutos después; el cambio se completa solo.\n${b?`• ${p} pistas que son archivos tuyos se descargarán y copiarán a\n  ${b}\n  antes de salir de la biblioteca.`:`• Copia desactivada: ${p} pistas que son archivos tuyos salen sin copia.`}\n• Después, las antiguas se borran de la biblioteca (y de iCloud).`,
+  procurarRep:'Buscar repetidas', lendo:'Leyendo la biblioteca…', removerRep:'Eliminar repetidas marcadas',
+  repResumo:(g,e)=>`${g} canciones repetidas (${e} copias de sobra). Mismo nombre, artista y álbum, con una duración de hasta 3 s de diferencia.`,
+  fica:'queda', sai:'sale', repSel:(g,c)=>`${g} marcadas · ${c} copias salen`,
+  confirmarRep:(n,b)=>`¿Eliminar ${n} copias repetidas?\n\nQueda la de mejor calidad; las reproducciones y las playlists pasan a ella. ${b?`Las copias que son archivos tuyos se descargan y copian a ${b} antes de salir.`:'Copia desactivada: las copias que son archivos tuyos salen sin copia.'}`,
+  st:{uploaded:'Subida',matched:'Coincidente','no longer available':'No disponible',subscription:'Apple Music',purchased:'Comprada',unknown:'Desconocido'},
+  mkErro:'No pude cargar MusicKit JS.', locale:'es-ES'
 }};
 const VAR={'dolby-atmos':['Dolby Atmos','atmos'],'hi-res-lossless':['Hi-Res Lossless','ll'],'lossless':['Lossless','ll']};
 const H={'Content-Type':'application/json','X-Troca':'1'};
-let L=(()=>{try{const s=localStorage.getItem('idioma');if(s)return s}catch(e){}return (navigator.language||'').toLowerCase().startsWith('pt')?'pt':'en'})();
+let L=(()=>{try{const s=localStorage.getItem('idioma');if(s)return s}catch(e){}const nl=(navigator.language||'').toLowerCase();return nl.startsWith('pt')?'pt':nl.startsWith('es')?'es':'en'})();
 let S=null, ssel=new Set(), spLimite=200;
 let E={}, A=null, sel=new Set(), limite=200, R=null, rsel=new Set(), rodavaAntes=false;
 const t=k=>TXT[L][k];
@@ -293,8 +345,8 @@ async function retomar(){ $('bRetomar').disabled=true; try{await api('/api/retom
 async function descartarInterrompida(){ if(!confirm(t('intDescartarConfirma'))) return; try{await api('/api/retomar/descartar',{});await atualizar()}catch(e){erro(e)} }
 
 function aplicarIdioma(){
-  document.documentElement.lang=L==='pt'?'pt-BR':'en';
-  $('lang-pt').classList.toggle('on',L==='pt'); $('lang-en').classList.toggle('on',L==='en');
+  document.documentElement.lang=L==='pt'?'pt-BR':L==='es'?'es':'en';
+  $('lang-pt').classList.toggle('on',L==='pt'); $('lang-en').classList.toggle('on',L==='en'); $('lang-es').classList.toggle('on',L==='es');
   document.querySelectorAll('[data-i]').forEach(el=>{const v=t(el.dataset.i); if(el.hasAttribute('data-html')) el.innerHTML=v; else el.textContent=v;});
   document.querySelectorAll('[data-i-ph]').forEach(el=>el.placeholder=t(el.dataset.iPh));
 }
@@ -322,7 +374,7 @@ async function atualizar(){
     vis($('log'),true); const l=$('log'); const fim=l.scrollTop+l.clientHeight>=l.scrollHeight-8; l.textContent=tf.log.join('\n'); if(fim) l.scrollTop=l.scrollHeight;
   } else $('tarefaTxt').textContent=t('nada');
   const it=E.interrompida; vis($('intBox'),!!it&&!tf.rodando);
-  if(it){ const q=it.inicio?new Date(it.inicio).toLocaleString(L==='en'?'en-US':'pt-BR',{dateStyle:'short',timeStyle:'short'}):'';
+  if(it){ const q=it.inicio?new Date(it.inicio).toLocaleString(t('locale'),{dateStyle:'short',timeStyle:'short'}):'';
     $('intTxt').textContent=t('intParou')(it.nome,it.n,q,it.erro); }
   if(E.pendentes) $('tarefaTxt').insertAdjacentHTML('beforeend',`<div class="warn" style="margin-top:6px">⏳ ${esc(t('pendentesNuvem')(E.pendentes))}</div>`);
   if(rodavaAntes&&!tf.rodando){ carregarAnalise(); if(R) carregarRepetidas(); if(S) carregarSemPar(); carregarBackup(); }
@@ -373,7 +425,7 @@ async function protegerPl(pid,v){
 // ── backup
 let BK=null;
 async function carregarBackup(){ try{BK=await api('/api/backup')}catch(e){return} desenharBackup(); }
-const fmtTam=b=>b>=1e9?(b/1e9).toFixed(1).replace('.',L==='pt'?',':'.')+' GB':Math.round(b/1e6)+' MB';
+const fmtTam=b=>b>=1e9?(b/1e9).toFixed(1).replace('.',L==='en'?'.':',')+' GB':Math.round(b/1e6)+' MB';
 function desenharBackup(){
   if(!BK) return;
   $('bkInfo').textContent=BK.arquivos?t('bkInfo')(BK.arquivos,fmtTam(BK.bytes),BK.pastas.join(', ')):t('bkVazio');
