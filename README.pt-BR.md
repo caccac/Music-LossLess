@@ -2,6 +2,10 @@
 
 [English](README.md)
 
+![A aba Trocar depois de uma análise: cada álbum antigo, a edição do catálogo que vai substituí-lo (Dolby Atmos, Hi-Res Lossless), a confiança e a troca faixa a faixa](docs/screenshot.png)
+
+> **Antes de começar:** é preciso uma **conta Apple Developer** (paga) para criar a chave do MusicKit. A API do Apple Music exige, mesmo para uso pessoal. O resto é gratuito e roda no seu Mac.
+
 Ferramenta local para a biblioteca do app Música no Mac.
 
 - **Trocar por Lossless / Atmos**: faixas *Enviadas*, *Correspondidas* ou *Indisponíveis* (que nunca tocam em Lossless/Atmos) são trocadas pela versão do catálogo Apple Music. Álbuns do Apple Music sem Atmos são trocados por outra edição com Dolby Atmos, quando existe.
@@ -38,6 +42,14 @@ Na primeira vez, o macOS pede permissão para o Terminal (ou o app que rodar o s
 - As faixas são identificadas pelo *persistent ID*. O *database ID* do app Música pode ser renumerado de uma noite para outra e nunca é usado. Antes de mexer numa faixa, o script confere se ela ainda é a mesma da análise.
 - O script usa o menu Arquivo › Biblioteca › Atualizar Biblioteca na Nuvem do app Música, o que exige permissão de Acessibilidade para o app que roda o script.
 - O token do Apple Music fica em `dados/token_usuario.json` (permissão 600). O `.p8` não é copiado.
+
+## Como contribuir
+
+Contribuições são bem-vindas. As issues com a etiqueta [`good first issue`](https://github.com/caccac/Music-LossLess/labels/good%20first%20issue) são pontos de partida pequenos e independentes.
+
+- Tudo fica em dois arquivos: `musica.py` (servidor e lógica, só biblioteca padrão) e `pagina.html` (interface, JavaScript puro). Não há build nem nada para instalar.
+- Os textos da interface vão nos dois idiomas, nos objetos `TXT.pt` e `TXT.en` de `pagina.html`. As mensagens do servidor usam `tr("pt", "en")`.
+- O que apaga ou edita faixas precisa poder ser testado num único álbum antes. Conte no PR como você testou.
 
 ## Licença
 

@@ -4,6 +4,10 @@
 
 [Português](README.pt-BR.md)
 
+![The Swap tab after an analysis: each old album, the catalog edition it will become (Dolby Atmos, Hi-Res Lossless), the match confidence and the track-by-track mapping](docs/screenshot.png)
+
+> **Before you start:** you need an **Apple Developer account** (paid) to create a MusicKit key. The Apple Music API needs one even for personal use, and there's no way around it. Everything else is free and runs locally on your Mac.
+
 Songs you uploaded or matched years ago with iTunes Match / Sync Library never play in Lossless or Dolby Atmos, even when the same album is in the Apple Music catalog. Apple Music has no "replace with catalog version" button, and doing it by hand loses play counts, ratings, favorites and playlist positions.
 
 Music Lossless is a small local tool (one Python file and one web page) that does it for you:
@@ -119,6 +123,17 @@ dados/             created at runtime, git-ignored
 - Smart playlists update themselves, and the tool doesn't touch them. Playlists you follow from Apple Music can't be edited and are skipped.
 - Only the storefront of your Apple Music account is searched.
 - This is an unofficial tool, not affiliated with Apple. Try it on a few albums first.
+
+## Contributing
+
+Contributions are welcome. Issues labeled [`good first issue`](https://github.com/caccac/Music-LossLess/labels/good%20first%20issue) are small, self-contained starting points.
+
+- Everything lives in two files: `musica.py` (server and logic, standard library only) and `pagina.html` (interface, plain JavaScript). There's no build step and nothing to install.
+- Function and variable names are in Portuguese. Comments and commit messages can be in English.
+- Interface text goes in both languages, in the `TXT.pt` and `TXT.en` objects in `pagina.html`. Server messages use `tr("pt", "en")`.
+- Anything that deletes or edits tracks needs a way to test it on a single album first. Describe in the PR how you tested it.
+
+Bug reports are just as useful: say how big your library is, what the Progress log showed, and attach the relevant lines of `dados/registro.jsonl` if any. Remove anything private first.
 
 ## License
 
